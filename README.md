@@ -2,7 +2,7 @@
 
 Voice conversations in DeepSeek Harness, powered by VoiceMesh Composer.
 
-**Release preparation:** this repository is not yet an independently installable release. Clean-install compatibility and bundled-runtime licensing must be resolved before distribution.
+**Release preparation:** this repository is not yet an independently installable release. A private archive has passed clean installation and initial UI loading on Harness 0.1.5-rc.1. Live voice validation and bundled-runtime licensing remain before distribution.
 
 ## Features
 
@@ -34,3 +34,7 @@ The final release will document the supported Harness version, restart instructi
 See [release preparation](docs/RELEASING.md), [data handling](docs/DATA_HANDLING.md), and [licensing](docs/LICENSING.md).
 
 Do not submit API keys, raw conversation logs, or private project content with bug reports. Include the plugin version, Harness version, operating system, browser, selected provider, and a redacted error message.
+
+## Author
+
+Maintained by [Hopeton Palmer](https://github.com/hopeton2). Built on DeepSeek Harness and VoiceMesh Composer. Upstream attribution is retained in `LICENSE`.

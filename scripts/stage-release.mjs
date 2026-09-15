@@ -68,7 +68,7 @@ await writeFile(join(stage, 'cordis.patch.yml'), `# Draft: validate placement an
         ttsPath: /api/voice/tts
         healthPath: /api/voice/health
         lastOutputPath: /api/voice/last-output
-        deepgramKey: ''
+        deepgramKey: DEEPGRAM_API_KEY
         maxBodyBytes: 33554432
     - id: voice-client
       name: '@deepseek-ai/dsh-voice-client'
