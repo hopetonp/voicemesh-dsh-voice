@@ -1,0 +1,18 @@
+.userRow { display: flex; justify-content: flex-end; }
+.bubble {
+  max-width: min(calc(var(--dsh-chat-content-width, 748px) * 0.702), 82%);
+  background: var(--dsw-specific-bubble);
+  border-radius: 22px;
+  padding: 10px 16px;
+}
+.bubble, .speech {
+  font-size: var(--dsh-content-font-size, 14px);
+  line-height: calc(22px + var(--dsh-content-font-delta, 0px));
+  color: var(--dsw-alias-label-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.assistantRow { min-width: 0; }
+
+/* Provider transcript line breaks are speech segmentation, not a requested text layout. */
+.speech { white-space: normal; }

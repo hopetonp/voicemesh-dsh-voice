@@ -1,0 +1,520 @@
+/* Voice setup page (a settings.section). Every control is copied from the
+ * harness's own settings recipes — no hand-painted styling — so the page reads
+ * like the other settings sections:
+ *   - dropdowns  -> `Menu` primitive anchored to the capsule `.selector`
+ *                   (EnterBehaviorRow / Conversation-display controls)
+ *   - text fields-> full-width `bg-layer-3` ink on the `fields.tsx` geometry
+ *                   (Web search card)
+ *   - toggles    -> the Subagent `.switch` pill
+ *   - cards      -> `PluginCard` chrome (layer-3 fill, open layer-2)
+ * Everything resolves through `--dsw-alias-*` tokens, following the theme. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 640px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.heading {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+.hint {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.vadStatus {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--dsw-alias-label-primary);
+}
+
+.vadStatusOk {
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.vadStatusWarn {
+  color: var(--dsw-alias-state-warn-primary);
+}
+
+.vadReason {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* ------------------------------------------------------------------ cards
+ * `PluginCard` chrome: a raised layer-3 panel; an open card reads as the one
+ * being worked on (layer-2). */
+.card {
+  list-style: none;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 16px;
+  background: var(--dsw-alias-bg-layer-3);
+  transition: border-color 0.16s, background 0.16s;
+}
+
+.card:hover {
+  border-color: var(--dsw-alias-label-dimmed);
+}
+
+.cardOpen {
+  background: var(--dsw-alias-bg-layer-2);
+  border-color: var(--dsw-alias-label-dimmed);
+}
+
+.cardHeader {
+  width: 100%;
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+}
+
+.cardHeader:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: -2px;
+}
+
+.cardHeadText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cardTitle {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--dsw-alias-label-primary);
+}
+
+.cardDesc {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.cardChevron {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+  transition: transform 0.16s;
+}
+
+.cardChevronOpen {
+  transform: rotate(180deg);
+}
+
+.cardBody {
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+  margin: 0 16px;
+  padding: 2px 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cardBody > .card + .card {
+  margin-top: 6px;
+}
+
+/* ---------------------------------------------------------------- fields
+ * `fields.tsx` geometry: label over a full-width ink on layer-3, hint below,
+ * hairline between siblings. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+}
+
+.field + .field {
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--dsw-alias-label-primary);
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 34px;
+  padding: 0 12px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--dsw-alias-bg-layer-3);
+  color: var(--dsw-alias-label-primary);
+}
+
+.input:focus-visible {
+  outline: none;
+  border-color: var(--dsw-alias-brand-primary);
+}
+
+.input::placeholder {
+  color: var(--dsw-alias-label-dimmed);
+}
+
+.input:disabled {
+  color: var(--dsw-alias-label-tertiary);
+  cursor: default;
+}
+
+.hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* A collapsible sub-group inside a card: a smaller header + chevron that
+ * discloses its controls. Sub-group siblings are separated by a hairline. */
+.subsection {
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+.subsection:first-child {
+  border-top: none;
+}
+.subsectionHeader {
+  width: 100%;
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+}
+.subsectionHeader:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: -2px;
+}
+.subsectionTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--dsw-alias-label-primary);
+}
+.subsectionChevron {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+  transition: transform 0.16s;
+}
+.subsectionChevronOpen {
+  transform: rotate(180deg);
+}
+.subsectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0 10px;
+}
+
+/* Key credential: label row carries a configured/unset badge (SecretField). */
+.labelRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.labelRow .label {
+  flex: 1;
+  min-width: 0;
+}
+
+.badge {
+  border-radius: 999px;
+  corner-shape: round;
+  padding: 1px 8px;
+  font-size: 11px;
+  line-height: 17px;
+  white-space: nowrap;
+  font-weight: 500;
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.badgeMuted {
+  border-radius: 999px;
+  corner-shape: round;
+  padding: 1px 8px;
+  font-size: 11px;
+  line-height: 17px;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* ---------------------------------------------------------------- dropdown
+ * The harness's capsule `.selector` (EnterBehaviorRow / conversation-display):
+ * a pill trigger the `Menu` primitive anchors its list to, chevron on the
+ * right. */
+.selector {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  height: 36px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 18px;
+  background: var(--dsw-alias-bg-module-platform);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.selector:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.selector:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 1px;
+}
+
+.chevron {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* Model picker sits next to its "Load models" action. */
+.modelRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modelRow .selector {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------------- toggle
+ * Subagent `.switch` pill: 36x20 track, 16px thumb translating on. */
+.toggleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--dsw-alias-label-primary);
+}
+
+.toggleText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.toggleLabel {
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.toggleDesc {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.switch {
+  box-sizing: border-box;
+  position: relative;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 20px;
+  padding: 2px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--dsw-alias-border-l3);
+  cursor: pointer;
+}
+
+.switchOn {
+  background: var(--dsw-alias-brand-primary);
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 2px;
+}
+
+.switch:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.thumb {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  corner-shape: round;
+  background: var(--dsw-alias-label-primary-foreground);
+  transition: transform 120ms ease;
+}
+
+.switchOn .thumb {
+  transform: translateX(16px);
+}
+
+/* Couldn't match the harness's range primitive; keep a quiet native slider.
+ * The accent follows the brand so it reads as a harness control. */
+.sliderRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+}
+
+.sliderHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sliderLabel {
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.sliderValue {
+  font-size: 12px;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.slider {
+  width: 100%;
+  accent-color: var(--dsw-alias-button-primary-fill);
+}
+
+/* ---------------------------------------------------------------- misc */
+.btnRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0 4px;
+}
+
+.result {
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.resultOk {
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.resultFail {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.cardTop { position: relative; }
+.cardTopWithVoice { display: grid; grid-template-columns: minmax(0, 1fr) auto 42px; align-items: center; }
+.cardTopWithVoice .cardHeader { grid-column: 1 / -1; grid-row: 1; display: grid; grid-template-columns: subgrid; }
+.cardTopWithVoice .cardHeadText { grid-column: 1; }
+.cardTopWithVoice .cardChevron { grid-column: 3; justify-self: end; }
+.cardTopWithVoice .quickVoice { grid-column: 2; grid-row: 1; z-index: 1; }
+.voiceDot { width: 12px; height: 12px; flex: none; border-radius: 50%; corner-shape: round; background: #3984f5; }
+.quickVoice { display: inline-flex; align-items: center; gap: 8px; margin: 0; padding: 8px 12px;
+  border: 1px solid var(--dsw-alias-border-l4); border-radius: 18px; background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-primary); font: inherit; cursor: pointer; max-width: 180px; overflow-wrap: anywhere; }
+.quickVoice:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.quickVoice:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); }
+
+.cardTopWithVoice .quickVoice { padding: 0; gap: 0; position: relative; max-width: 220px; }
+.voiceChoice, .voicePreview { border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; padding: 8px 10px; }
+.voiceChoice { display: inline-flex; align-items: center; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+.voicePreview { border-left: 1px solid var(--dsw-alias-border-l4); flex: none; font-size: 12px; }
+.voiceChoice:focus-visible, .voicePreview:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); border-radius: 12px; }
+.previewError { position: absolute; right: 0; top: 100%; width: 240px; padding: 10px; z-index: 2;
+  border: 1px solid var(--dsw-alias-border-l4); border-radius: 8px; background: var(--dsw-alias-bg-layer-2); font-size: 12px; }
+
+.radioGroup { display: flex; flex-wrap: wrap; gap: 12px 24px; }
+.radioGroup label { display: inline-flex; align-items: center; gap: 8px; padding: 6px 0; cursor: pointer; }
+.radioGroup input { width: 16px; height: 16px; margin: 0; accent-color: var(--dsw-alias-state-info-primary, #3978f6); cursor: pointer; }
+.modelRow { display: flex; align-items: center; gap: 8px; }
+.modelRow > :first-child { flex: 1; min-width: 0; }
+.modelRow > :last-child:not(:first-child) { flex: none; }
+
+.realtimeSelectionRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.realtimeModel {
+  flex: 1;
+  min-width: 0;
+}
+
+.realtimeSelectionRow > .field {
+  flex: 0 0 auto;
+  max-width: 40%;
+}
+
+.realtimeSelectionRow > .field .input {
+  min-width: 96px;
+  width: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subsectionSummary {
+  max-width: 60%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-weight: 400;
+}

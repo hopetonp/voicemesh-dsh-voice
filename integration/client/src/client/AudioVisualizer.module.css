@@ -1,0 +1,9 @@
+/* Fixed toolbar footprint; only the waveform responds to audio. */
+.wave {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 64px;
+  height: 28px;
+  color: var(--dsw-alias-brand-primary, #80a9ed);
+}
+.wave svg { fill: currentColor; }

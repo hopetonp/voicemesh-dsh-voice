@@ -1,0 +1,14 @@
+{
+  "name": "@voicemesh/dsh-voice",
+  "version": "0.1.0-alpha.1",
+  "private": true,
+  "type": "module",
+  "description": "VoiceMesh Composer integration for DeepSeek Harness",
+  "scripts": {
+    "stage": "node scripts/stage-release.mjs",
+    "check": "node scripts/check-source.mjs"
+  },
+  "engines": {
+    "node": ">=22.19"
+  }
+}
