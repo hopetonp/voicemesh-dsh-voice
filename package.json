@@ -6,9 +6,21 @@
   "description": "VoiceMesh Composer integration for DeepSeek Harness",
   "scripts": {
     "stage": "node scripts/stage-release.mjs",
-    "check": "node scripts/check-source.mjs"
+    "check": "node scripts/check-source.mjs",
+    "package": "node scripts/package-release.mjs"
   },
   "engines": {
     "node": ">=22.19"
+  },
+  "author": {
+    "name": "Hopeton Palmer",
+    "url": "https://github.com/hopeton2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hopeton2/voicemesh-dsh-voice.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hopeton2/voicemesh-dsh-voice/issues"
   }
 }
