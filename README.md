@@ -13,6 +13,8 @@ Voice conversations in DeepSeek Harness, powered by VoiceMesh Composer.
 
 ## Architecture
 
+The Harness integration explicitly disables GPT-Live command acknowledgment tracking with `commandAcknowledgments: false`; Composer retains acknowledgment support for other applications.
+
 Composer owns the reusable voice runtime. This repository contains the Harness integration: settings, credentials adapters, coding-task policy, history integration, and controls. It does not contain Composer source.
 
 Release artifacts will include Composer's compiled runtime. Users will install one plugin bundle without separately installing Composer. Local speech models are separate downloads.
