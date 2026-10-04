@@ -128,6 +128,10 @@ The exact archive contains the compiled wrapper, host, client, local-runtime fil
 
 On 2026-10-04, `npm whoami` returned `ENEEDAUTH`. Third-party license texts identified in NOTICE are still absent from the archive. This artifact therefore remains a private test package and is not approved for npm publication.
 
+### Clean published-Web check — 2026-10-04
+
+The exact Desktop-tested tarball installed into a fresh `DSH_HOME` at `/Users/hgp/.dsh-voice-stock-clean-20261004` with published `@deepseek-ai/dsh@0.2.0-rc.2`. Plugin inventory showed the wrapper installed and enabled, and the voice credential route was present. In a new session, however, the empty composer rendered only disabled Send: the `voice-mic-dock` contribution did not appear. Typing enabled Send and clearing returned to disabled Send. A second browser diagnostic on the disposable profile reproduced the missing mic and found no Harness or VoiceMesh activation error in the console. The stock-Web install therefore fails the required composer acceptance check; no provider call or live voice test was attempted there. The disposable server was stopped, and the separate Desktop and Web profiles were left unchanged.
+
 ## Publish decision
 
 Do not publish while any frozen-candidate entry is pending or while the rights, notices, and npm scope evidence remain unresolved. A candidate that repeats the v60 content or manifest failures is rejected.
