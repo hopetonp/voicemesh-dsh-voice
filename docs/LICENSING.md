@@ -2,6 +2,6 @@
 
 The copied Harness integration retains the upstream MIT license and attribution in `LICENSE`.
 
-Composer is a separate build input. Its development manifest currently declares MIT, but the owner's intended distribution terms have not yet been confirmed. Do not infer Composer licensing from the integration's LICENSE file or distribute release artifacts before this is resolved.
+Composer is a separate build input. Its owner confirmed MIT distribution with `Copyright (c) 2026 Hopeton Palmer`; the canonical Composer license is in the Composer repository's `LICENSE` file and the wrapper retains it as `LICENSE-COMPOSER`.
 
-Each release must include the applicable Composer license and required third-party license texts, including notices for bundled JavaScript, WebAssembly, and other assets. Local model downloads have their own license terms and are not included in the base plugin.
+Each release must include the required third-party license texts, including notices for bundled JavaScript, WebAssembly, and other assets. The current wrapper NOTICE identifies known bundled runtime dependencies, but their license texts are not yet retained in the archive. Local model downloads have their own license terms and are not included in the base plugin.

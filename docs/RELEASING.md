@@ -17,7 +17,7 @@ The script copies only declared runtime entries into an ignored `.release/` dire
 ## Required before distribution
 
 1. Confirm the GitHub owner and package name.
-2. Confirm Composer distribution terms and collect third-party notices.
+2. Composer MIT distribution is confirmed; collect and retain third-party license texts.
 3. Replace local dependency references with packaged dependencies; preserve Harness shared service identities.
 4. Complete a single installable bundle and verify its activation against a clean supported Harness version, including the browser module loader.
 5. Verify install, start, provider configuration, speech, interruption, standby, history, and removal from the packed artifact.
@@ -32,7 +32,11 @@ Do not publish `.release/`, private Composer artifacts, or development manifests
 
 The archive installed using `dsh plugin --profile web add <archive>` on npm Harness 0.1.5-rc.1 in an isolated home. `--dump-config` included both voice rows. The web app started on a separate port, and browser inspection confirmed the Voice settings panel loaded. The archive contains ten files, with no Composer source or source maps.
 
-This validates packaging, activation, and initial UI loading. Provider credentials were not configured in the isolated profile, so live speech, interruption, standby, and transcript persistence are not yet validated from the archive. Local speech models and native runtime installation also remain outside this packaging smoke test. Composer licensing and third-party notices remain prerequisites for distribution.
+This validates packaging, activation, and initial UI loading. Provider credentials were not configured in the isolated profile, so live speech, interruption, standby, and transcript persistence are not yet validated from the archive. Local speech models and native runtime installation also remain outside this packaging smoke test. Composer MIT distribution is confirmed; third-party license retention remains a prerequisite for distribution.
+
+### First-run setup
+
+The archive starts with no speech-recognition or speech-synthesis engine selected. Its browser client displays a one-time **Finish voice setup** prompt that directs the user to **Settings → Voice**. From there the user explicitly chooses local or cloud engines and installs any local model packs they want. The setup prompt and blank engine defaults were repacked and verified in an isolated Harness profile on 2026-09-15.
 
 ### Setup-route activation
 

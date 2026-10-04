@@ -7,6 +7,7 @@
   "scripts": {
     "stage": "node scripts/stage-release.mjs",
     "check": "node scripts/check-source.mjs",
+    "test:live-task-instruction": "node --test integration/host/tests/live-task-instruction.test.ts",
     "package": "node scripts/package-release.mjs"
   },
   "engines": {

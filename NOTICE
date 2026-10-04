@@ -1,0 +1,9 @@
+# VoiceMesh for DeepSeek Harness notices
+
+The VoiceMesh Harness integration and its bundled harness-policy component are covered by the MIT license in this package's `LICENSE` file, retained from the containing DeepSeek Harness repository.
+
+VoiceMesh Composer `0.2.0` is MIT licensed, Copyright (c) 2026 Hopeton Palmer. Its compiled runtime is bundled in this package; its license text is retained in `LICENSE-COMPOSER`.
+
+The exact bundled runtime includes code from `eventsource-parser` (MIT), `zod` (MIT), `ws` (MIT), and `@msgpack/msgpack` (ISC). Their license texts must be retained before public distribution.
+
+This notice does not replace third-party license texts.

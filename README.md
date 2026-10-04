@@ -2,7 +2,13 @@
 
 Voice conversations in DeepSeek Harness, powered by VoiceMesh Composer.
 
-**Release preparation:** this repository is not yet an independently installable release. A private archive has passed clean installation and initial UI loading on Harness 0.1.5-rc.1. Live voice validation and bundled-runtime licensing remain before distribution.
+**Release status:** no public npm release is available. The owner reported a successful live voice test in the isolated Desktop build on 2026-10-04. Third-party license retention, npm scope authorization, and a complete stock-Web release smoke remain open.
+
+## Harness compatibility
+
+VoiceMesh dispatches the latest spoken request as the coding Session prompt. GPT-Live's orchestration and transcript context remain in its provider configuration, so they never enter the coding Session as a user message. When transcript history is enabled, the VoiceMesh Chat-node contribution renders spoken transcripts; a coding dispatch also appears as an ordinary Harness user message. The resulting presentation still needs a stock-Web packed-artifact smoke before it is accepted for beta.
+
+VoiceMesh may add plugins and profile rows through Harness's published bundle and profile composition pipeline, but must not depend on edits to Harness source packages or shipped application files. A packed-artifact smoke against the supported Harness version remains required before installation or publication.
 
 ## Features
 
@@ -21,19 +27,29 @@ Release artifacts will include Composer's compiled runtime. Users will install o
 
 The `integration/` directory is the initial source snapshot from the working Harness integration. Its development manifests record dependencies; they are not installable packages. Builds currently use the Harness checkout and its installed private Composer artifact. Standalone source builds are not available yet.
 
-## Installation
+## Installation after beta approval
 
-No public release is available yet. The intended installation for a downloaded, verified release is:
+Use the DeepSeek Harness version named in the approved release notes:
 
 ```sh
-dsh plugin --profile web add ./voicemesh-dsh-voice-0.1.0-alpha.1.tgz
+dsh plugin --profile web add ./voicemesh-dsh-voice-<version>.tgz
 ```
 
-The final release will document the supported Harness version, restart instructions, and removal command. Installing alongside an existing voice integration must not activate two microphones or duplicate routes.
+On its first web load, VoiceMesh opens a one-time **Finish voice setup** prompt. Open **Settings → Voice** to choose speech recognition, speech synthesis, and a conversational model. Local speech models remain optional downloads; the plugin does not install or select an engine automatically.
+
+Restart the web profile after installation. To remove the bundle, run:
+
+```sh
+dsh plugin --profile web remove @voicemesh/dsh-voice
+```
+
+Installing alongside an existing voice integration must not activate two microphones or duplicate routes.
 
 ## Development and distribution
 
-See [release preparation](docs/RELEASING.md), [data handling](docs/DATA_HANDLING.md), and [licensing](docs/LICENSING.md).
+Provider keys stay in the Harness credential service; the browser receives configuration status, not the key. Selected cloud routes send audio or text to their provider. Local speech recognition and synthesis do not make the selected conversational model local. Realtime diagnostic recording is disabled by default. Voice previews may be cached by the app; this beta does not promise a cache-retention period.
+
+See [license](LICENSE) and [notices](NOTICE).
 
 Do not submit API keys, raw conversation logs, or private project content with bug reports. Include the plugin version, Harness version, operating system, browser, selected provider, and a redacted error message.
 

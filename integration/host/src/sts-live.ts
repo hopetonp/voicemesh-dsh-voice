@@ -448,7 +448,7 @@ export function mountStsLive(ctx: Context, config: StsLiveConfig): void {
             return false
           }
         }, lifetime.signal, renewalContextBytes, stop,
-        { waitMs: config.contextWaitMs, quietMs: config.contextQuietMs }, reportInstructions, () => context?.snapshot() ?? '',
+        { waitMs: config.contextWaitMs, quietMs: config.contextQuietMs },
         (requestId, phase) => {
           const turn = tasks?.states().find(state => state.requestId === requestId)?.turn
           if (turn !== undefined) send({ type: 'voice.result-delivery', turn, phase })
