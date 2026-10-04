@@ -134,6 +134,12 @@ The exact Desktop-tested tarball installed into a fresh `DSH_HOME` at `/Users/hg
 
 The cause was the generated patch's replacement of a `voice-client` row absent from the stock profile. The packager now inserts that row under `connection`. The rebuilt private archive is `/Users/hgp/DeepSeek/voicemesh-dsh-voice/.release/package-1791123672317/voicemesh-dsh-voice-0.1.0-alpha.1.tgz` (SHA-256 `7393d8a02ca700f46fb3f6757357adcf206b401316b37fc9d4d5472a19c8dcce`). In the same clean stock-Web home, `--dump-config` showed both `voice-host` and `voice-client`. Browser verification on port 3905 showed one Start voice chat control and no Send for an empty draft, Send and no mic after typing, and the mic again after clearing. An unauthorized credential-status request returned 401. The server was stopped; no provider call or key was used. This clears the stock-Web composer blocker for this archive. The working Desktop profile still has the earlier archive; this archive has not been installed or checked there.
 
+### Official Desktop download check — 2026-10-04
+
+The official DeepSeek macOS download (`https://download.deepseek.com/desktop/dsh-latest-macos-arm64.dmg`, SHA-256 `7c32c459c403d8a035ac60600f240ed2025312f0a7afde283f454f30ec4ed96e`) was verified as a notarized Developer ID build from Hangzhou DeepSeek Artificial Intelligence Co., Ltd, version `0.2.0-rc.2`. It was copied to an isolated app location and launched with an isolated `DSH_HOME`; the host process confirmed that home. The same VoiceMesh archive was installed and enabled there. A fresh session showed the mic for an empty draft, Send while text was present, and the mic again after clearing. The client contribution therefore works in the official Desktop build.
+
+The official Desktop host did not complete the keyless credential-status check: Voice settings displayed `Could not save or load voice credentials on the host. Re-enter any missing key before refreshing.` The route status and host failure cause were not observable from the official app's available logs or UI. No key or provider call was used. The isolated app was stopped; the working Desktop profile was not changed. This is an unresolved official Desktop host blocker for this archive.
+
 ## Publish decision
 
 Do not publish while any frozen-candidate entry is pending or while the rights, notices, and npm scope evidence remain unresolved. A candidate that repeats the v60 content or manifest failures is rejected.
