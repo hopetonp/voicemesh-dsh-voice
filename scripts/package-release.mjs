@@ -56,7 +56,7 @@ for (const [name, relative] of components) {
     // Harness implementation modules include stage-3 decorators. The private
     // artifact targets Node directly, so lower them after RollDown inlines the
     // implementation modules.
-    hostCode = execFileSync('pnpm', ['exec', 'esbuild', '--loader=js', '--format=esm', '--target=es2024'], {
+    hostCode = execFileSync(join(harness, 'node_modules/.bin/esbuild'), ['--loader=js', '--format=esm', '--target=es2024'], {
       cwd: harness, input: hostCode, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024,
     });
     await writeFile(join(target, 'lib/index.js'), hostCode);
@@ -123,17 +123,20 @@ await writeFile(join(output, 'cordis.patch.yml'), `# Connection RPC registration
         lastOutputPath: /api/voice/last-output
         deepgramKey: DEEPGRAM_API_KEY
         maxBodyBytes: 33554432
-- id: voice-client
-  name: '@voicemesh/dsh-voice'
-  config:
-    path: /api/voice/stt
-    sttStreamPath: /api/voice/stt/stream
-    sttWsPath: /api/voice/stt/ws
-    ttsPath: /api/voice/tts
-    healthPath: /api/voice/health
-    lastOutputPath: /api/voice/last-output
-    deepgramKey: DEEPGRAM_API_KEY
-    maxBodyBytes: 33554432
+    # Stock profiles have no voice-client row to replace. The root entry is
+    # the client-scanned wrapper; its inert Node face keeps host registration
+    # on the sibling subpath row above.
+    - id: voice-client
+      name: '@voicemesh/dsh-voice'
+      config:
+        path: /api/voice/stt
+        sttStreamPath: /api/voice/stt/stream
+        sttWsPath: /api/voice/stt/ws
+        ttsPath: /api/voice/tts
+        healthPath: /api/voice/health
+        lastOutputPath: /api/voice/last-output
+        deepgramKey: DEEPGRAM_API_KEY
+        maxBodyBytes: 33554432
 `);
 const packed = JSON.parse(execFileSync('npm', ['pack', '--json', '--ignore-scripts'], { cwd: output, encoding: 'utf8' }));
 const artifact = join(output, packed[0].filename);
