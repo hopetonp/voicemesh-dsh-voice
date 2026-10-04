@@ -1,5 +1,34 @@
 /** Shared voice discovery dialog with provider-specific isolated previews. */
 import { useEffect, useId, useRef, useState } from 'react'
+/** Voice indicators the compact carousel shows at once. */
+const DOT_WINDOW = 9
+const AVATAR_CLASSES = ['avatar0', 'avatar1', 'avatar2', 'avatar3', 'avatar4', 'avatar5'] as const
+
+/** Return a stable palette position for a voice identifier. */
+function avatarClass(id: string): typeof AVATAR_CLASSES[number] {
+  let hash = 0
+  for (const character of id) hash = (hash * 31 + character.charCodeAt(0)) >>> 0
+  return AVATAR_CLASSES[hash % AVATAR_CLASSES.length] ?? AVATAR_CLASSES[0]
+}
+
+/**
+ * The discovered catalog, plus the saved voice when the source does not list it. Voice ids are matched
+ * exactly first and without case second, because a provider may list `marin` for a saved `Marin`.
+ * @param discovered - voices the discovery source reported.
+ * @param selectedVoice - voice the configuration saved.
+ * @param placeholder - localized description for a saved voice the source does not list.
+ * @returns the entries the picker shows.
+ */
+export function savedVoiceEntry(discovered: VoiceCatalog['voices'], selectedVoice: string,
+  placeholder: string): VoiceCatalog['voices'] {
+  const saved = selectedVoice.trim()
+  if (saved === '' || discovered.length === 0) return discovered
+  const inner = saved.toLocaleLowerCase()
+  const match = discovered.find(voice => voice.id === saved)
+    ?? discovered.find(voice => voice.id.toLocaleLowerCase() === inner)
+  if (match !== undefined) return discovered
+  return [...discovered, { id: saved, name: saved, description: placeholder, languages: [], gender: '', region: '' }]
+}
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import { voiceDisplayName } from './voice-catalog.ts'
 import type { VoiceCatalog, VoiceCatalogActions, VoiceSelection } from './voice-catalog.ts'
@@ -39,6 +68,7 @@ export function VoicePicker({ selection, selectedVoice, favorites, onFavorites, 
   const [region, setRegion] = useState('')
   const [manual, setManual] = useState('')
   const { loading, playing, sampleError, preview, stop } = useVoicePreview(selection, previewVoice)
+  const manualSection = useRef<HTMLDetailsElement>(null)
   const { provider, mode, model } = selection
   const scope = `${provider}:${mode}:`
   useEffect(() => {
@@ -56,6 +86,13 @@ export function VoicePicker({ selection, selectedVoice, favorites, onFavorites, 
     return () => { request.abort() }
   }, [provider, mode, model, refresh, listVoices, fishLanguage])
 
+  // A failed discovery leaves manual entry as the only way to choose a voice, so
+  // the disclosure opens itself. It is never closed again from here: folding it
+  // is the user's own choice.
+  useEffect(() => {
+    if (loadState === 'error' && manualSection.current !== null) manualSection.current.open = true
+  }, [loadState])
+
   const choose = (voice: string): void => { stop(); onSelect(voice); onClose() }
   const packId = (id: string): string => id.slice(0, id.lastIndexOf(':'))
   const packs = provider === 'kokoro' ? [...new Map((catalog?.voices ?? []).map(voice =>
@@ -63,9 +100,14 @@ export function VoicePicker({ selection, selectedVoice, favorites, onFavorites, 
   const preferredPack = packs.find(item => /\bFP32\b/i.test(item.name)) ?? packs[0]
   const selectedPack = packs.find(item => item.id === packId(selectedVoice))
   const activePack = packs.find(item => item.id === pack)?.id ?? (browsing ? preferredPack : selectedPack ?? preferredPack)?.id
-  const voices = (catalog?.voices ?? []).map(voice => ({ ...voice, name: voiceDisplayName(voice.name) })).filter(voice => provider !== 'kokoro' || packId(voice.id) === activePack).filter(voice => provider !== 'deepgram' || family === 'all'
+  // A saved voice the discovery source does not list is still the voice in use: it is shown as its own
+  // entry, so the carousel opens on it and its indicator is the one marked as selected.
+  const discovered = catalog?.voices ?? []
+  const listed = savedVoiceEntry(discovered, selectedVoice, t('picker.savedNotListed'))
+  const unfilteredVoices = listed.map(voice => ({ ...voice, name: voiceDisplayName(voice.name) })).filter(voice => provider !== 'kokoro' || packId(voice.id) === activePack).filter(voice => provider !== 'deepgram' || family === 'all'
     || (family === 'flux' ? voice.id.startsWith('flux-')
       : family === 'aura2' ? voice.id.startsWith('aura-2-') : voice.id.startsWith('aura-') && !voice.id.startsWith('aura-2-')))
+  const voices = unfilteredVoices
   const activeLanguage = provider === 'fish' ? fishLanguage ?? catalog?.filterLanguage ?? '' : language
   const languages = [...new Set([...voices.flatMap(voice => voice.languages), ...(activeLanguage ? [activeLanguage] : [])])].sort()
   const genders = [...new Set(voices.map(voice => voice.gender).filter(Boolean))].sort()
@@ -77,9 +119,17 @@ export function VoicePicker({ selection, selectedVoice, favorites, onFavorites, 
     && (provider === 'fish' || language === '' || voice.languages.includes(language)) && (gender === '' || gender === voice.gender)
     && (region === '' || region === voice.region)
     && `${voice.id} ${voice.name} ${voice.description} ${voice.languages.join(' ')} ${voice.gender} ${voice.region}`.toLocaleLowerCase().includes(query))
-  const candidateIndex = Math.max(0, voices.findIndex(voice => voice.id === candidate))
+    .sort((left, right) => left.name.localeCompare(right.name))
+  // A provider may list `marin` for a saved `Marin`, so the saved voice is recognized by case too.
+  const sameVoice = (id: string): boolean => id === selectedVoice || (selectedVoice.trim() !== ''
+    && id.toLocaleLowerCase() === selectedVoice.trim().toLocaleLowerCase())
+  const candidateIndex = Math.max(0, voices.findIndex(voice => voice.id === candidate
+    || (candidate.trim() !== '' && voice.id.toLocaleLowerCase() === candidate.trim().toLocaleLowerCase())))
   const current = voices[candidateIndex]
-  const pageStart = Math.max(0, Math.min(candidateIndex - 4, voices.length - 9))
+  // The indicator window holds still while the carousel moves inside it, so the dot a user taps is the
+  // dot that lights up; it shifts a whole window at a time when the carousel leaves it.
+  const pageStart = Math.max(0, Math.min(Math.floor(candidateIndex / DOT_WINDOW) * DOT_WINDOW,
+    Math.max(0, voices.length - DOT_WINDOW)))
   const navigate = (index: number): void => {
     const next = voices[(index + voices.length) % voices.length]
     if (next === undefined) return
@@ -114,7 +164,7 @@ export function VoicePicker({ selection, selectedVoice, favorites, onFavorites, 
           }}>
             {packs.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>}
-          {(languages.length > 0 || provider === 'fish') && <select aria-label={t('picker.languages')} value={activeLanguage} onChange={(event) => {
+          {provider !== 'gemini' && (languages.length > 0 || provider === 'fish') && <select aria-label={t('picker.languages')} value={activeLanguage} onChange={(event) => {
             if (provider === 'fish') { stop(); setFishLanguage(event.target.value) }
             else setLanguage(event.target.value)
           }}>
@@ -123,7 +173,7 @@ export function VoicePicker({ selection, selectedVoice, favorites, onFavorites, 
           {genders.length > 0 && <select aria-label={t('picker.genders')} value={gender} onChange={event => setGender(event.target.value)}>
             <option value="">{t('picker.genders')}</option>{genders.map(value => <option key={value}>{value}</option>)}
           </select>}
-          {regions.length > 0 && <select aria-label={t('picker.regions')} value={region} onChange={event => setRegion(event.target.value)}>
+          {provider !== 'gemini' && regions.length > 0 && <select aria-label={t('picker.regions')} value={region} onChange={event => setRegion(event.target.value)}>
             <option value="">{t('picker.regions')}</option>{regions.map(value => <option key={value}>{value}</option>)}
           </select>}
           <button type="button" disabled={loadState === 'loading'} onClick={() => setRefresh(value => value + 1)}>{t('picker.refresh')}</button>
@@ -138,27 +188,39 @@ export function VoicePicker({ selection, selectedVoice, favorites, onFavorites, 
       </div>
       <div className={css.list}>
         {loadState === 'ready' && filtered.length === 0 && <p>{t('picker.empty')}</p>}
-        {filtered.map(voice => <article className={css.row} key={voice.id}>
-          <div className={css.avatar} aria-hidden="true">{voice.name.slice(0, 1).toUpperCase()}</div>
-          <div className={css.metadata}><strong>{voice.name}</strong><small>{voice.id}</small>
-            <p>{[voice.description, ...voice.languages, voice.gender, voice.region].filter(Boolean).join(' · ')}</p></div>
-          <button type="button" aria-label={`${t('picker.favorite')} ${voice.name}`} aria-pressed={favorites.includes(scope + voice.id)}
+        {filtered.map(voice => <article className={`${css.row}${sameVoice(voice.id) ? ` ${css.selectedRow}` : ''}`} key={voice.id}>
+          <div className={`${css.avatar} ${css[avatarClass(voice.id)]}`} aria-hidden="true">{voice.name.slice(0, 1).toUpperCase()}</div>
+          <div className={css.metadata}><strong>{voice.name}</strong>
+            <p>{[...new Set([voice.gender, voice.description, ...voice.languages, voice.region].filter(Boolean))].join(' · ')}</p></div>
+          <button type="button" className={css.action} aria-label={`${t('picker.favorite')} ${voice.name}`} aria-pressed={favorites.includes(scope + voice.id)}
             onClick={() => onFavorites(favorites.includes(scope + voice.id)
               ? favorites.filter(value => value !== scope + voice.id) : [...favorites, scope + voice.id])}>
             {favorites.includes(scope + voice.id) ? '★' : '☆'}</button>
-          <button type="button" aria-label={`${t(playing === voice.id || loading === voice.id ? 'picker.stop' : 'picker.preview')} ${voice.name}`}
+          <button type="button" className={css.action} aria-label={`${t(playing === voice.id || loading === voice.id ? 'picker.stop' : 'picker.preview')} ${voice.name}`}
             aria-busy={loading === voice.id} onClick={() => { void preview(voice.id) }}>
             <VoicePreviewIcon loading={loading === voice.id} playing={playing === voice.id} /></button>
-          <button type="button" onClick={() => choose(voice.id)}>
-            {t(selectedVoice === voice.id ? 'picker.selected' : 'picker.select')}</button>
+          <button type="button" className={css.select} onClick={() => choose(voice.id)}>
+            {t(sameVoice(voice.id) ? 'picker.selected' : 'picker.select')}</button>
         </article>)}
       </div>
       <footer className={css.footer}>
-        <label>{t('picker.manual')}<input value={manual} maxLength={128} onChange={event => setManual(event.target.value)} /></label>
-        <button type="button" disabled={manual.trim() === ''} aria-busy={loading === manual.trim()} onClick={() => { void preview(manual.trim()) }}>
-          {loading === manual.trim() && <VoicePreviewIcon loading playing={false} />}
-          {t(playing === manual.trim() || loading === manual.trim() ? 'picker.stop' : 'picker.preview')}</button>
-        <button type="button" disabled={manual.trim() === ''} onClick={() => choose(manual.trim())}>{t('picker.select')}</button>
+        {/* A provider may not list the voice you want, so manual entry stays folded
+            until it is asked for — and opens itself when discovery fails, because
+            then it is the only way to choose. The field and its two buttons share
+            one row: the buttons line up with the input, as the prompt input's own
+            controls line up with theirs. */}
+        <details ref={manualSection} className={css.manual}>
+          <summary>{t('picker.manual')}</summary>
+          <div className={css.manualRow}>
+            <input aria-label={t('picker.manual')} placeholder={t('picker.manual')} value={manual} maxLength={128}
+              onChange={event => setManual(event.target.value)} />
+            <button type="button" disabled={manual.trim() === ''} aria-busy={loading === manual.trim()}
+              onClick={() => { void preview(manual.trim()) }}>
+              {loading === manual.trim() && <VoicePreviewIcon loading playing={false} />}
+              {t(playing === manual.trim() || loading === manual.trim() ? 'picker.stop' : 'picker.preview')}</button>
+            <button type="button" disabled={manual.trim() === ''} onClick={() => choose(manual.trim())}>{t('picker.select')}</button>
+          </div>
+        </details>
       </footer>
     </> : <>
       <section className={css.carousel}>
@@ -171,13 +233,15 @@ export function VoicePicker({ selection, selectedVoice, favorites, onFavorites, 
           <button type="button" disabled={voices.length < 2} aria-label={t('picker.previous')}
             onClick={() => navigate(candidateIndex - 1)}>‹</button>
           <div aria-live="polite"><h3>{current?.name ?? t(loadState === 'loading' ? 'picker.loading' : 'picker.empty')}</h3>
+            {current !== undefined && sameVoice(current.id) && <small className={css.selectedMark}>{t('picker.selected')}</small>}
             <p>{current?.description || current?.id}</p></div>
           <button type="button" disabled={voices.length < 2} aria-label={t('picker.next')}
             onClick={() => navigate(candidateIndex + 1)}>›</button>
         </div>
-        <div className={css.dots}>{voices.slice(pageStart, pageStart + 9).map((voice, offset) =>
+        <div className={css.dots}>{voices.slice(pageStart, pageStart + DOT_WINDOW).map((voice, offset) =>
           <button type="button" key={voice.id} aria-label={`${t('picker.select')} ${voice.name}`}
-            aria-pressed={voice.id === current?.id} onClick={() => navigate(pageStart + offset)} />)}</div>
+            aria-pressed={voice.id === current?.id} aria-current={sameVoice(voice.id) ? 'true' : undefined}
+            onClick={() => navigate(pageStart + offset)} />)}</div>
         {catalog !== null && <small>{current === undefined ? 0 : candidateIndex + 1} / {voices.length} · <a href={catalog.sourceUrl}
           target="_blank" rel="noreferrer">{t(catalog.source === 'api' ? 'picker.api' : 'picker.documentation')}</a>{supplementalSource}</small>}
         {loadState === 'error' && <p role="status">{t('picker.unavailable')}</p>}

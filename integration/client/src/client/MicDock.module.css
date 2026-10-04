@@ -1,117 +1,87 @@
 /**
- * The voice control: a round conversation orb, with a status panel that floats
- * above it on hover, a separate action menu beneath it (mute / read back) also
- * on hover, and a live active-time clock shown only while the voice is active.
+ * The composer's voice control: one round button, seated in the Send position
+ * while the draft is empty. While the voice is off, hovering it names the
+ * action; while the voice is live there is no hover label.
  *
- * The orb is the only thing always visible. The hover panels and the active
- * timer occupy fixed-height, transparent slots and never reflow the dock, so
- * the orb's position is constant. Colors come from the DSH design alias
- * variables so the panels follow the active theme.
+ * It occupies the same 34-pixel square and vertical seat as Send, and its
+ * colours are the same in both themes. While the voice is inactive (off, or
+ * opening a connection) the button is black in dark mode and a shade below the
+ * raised surface in the light theme, and hovering it only nudges the icon —
+ * never the background. While the voice is on it wears the send hue exactly as
+ * Send does and lightens under the pointer, and a muted or failed session keeps
+ * its signal colour.
  */
 
-/* The control: a fixed-size reference box at the bottom-right. The orb, the
- * hover menu, and the active timer are all absolutely positioned inside it, so
- * nothing in the layout can ever push the orb around — its position is fixed
- * regardless of what is revealed. The box carries no background; each revealed
- * panel owns its own, like Flutter. */
-.dock {
-  position: fixed;
-  bottom: 20px;
-  right: 24px;
-  z-index: 9999;
-  /* 46 (orb) + 6 + 38 (menu) + 6 + 16 (timer). */
-  width: 76px;
-  height: 112px;
-}
-
-/* The status panel: floats above the orb, revealed on hover. */
-.statusPanel {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  right: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  box-sizing: border-box;
-  width: max-content;
-  max-width: min(220px, calc(100vw - 48px));
-  padding: 5px 10px;
-  border-radius: 16px;
-  background: var(--dsw-alias-bg-layer-2, #1c2128);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  animation: fade-in 0.12s ease-out;
-}
-
-.statusDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex: none;
-}
-
-.statusLabel {
-  font-size: 12px;
-  line-height: 1.2;
-  color: var(--dsw-alias-label-secondary, #9aa4b2);
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-/* The round conversation orb (always visible). */
-.orbWrap {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-  /* Level swell (inline transform) transitions smoothly rather than snapping. */
-  transition: transform 0.08s linear;
-}
-
-.orb {
+/* The control's box: the round button, plus the hint that floats above it. */
+.controls {
   position: relative;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  /* The row's 2px downward shift, cancelled so the circle keeps Send's seat. */
+  transform: translateY(-2px);
+}
+
+/* Mounted through the public composer overlay slot and aligned to the current primary button. */
+.overlay {
+  position: absolute;
+  z-index: 1;
+}
+
+.control {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 46px;
-  height: 46px;
+  box-sizing: border-box;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
   corner-shape: round;
-  /* A solid raised surface plus a hairline ring and a drop shadow, so the idle
-   * orb reads as a distinct button against the page instead of blending in.
-   * When lit the inline phase color overrides the fill and the halo adds the
-   * glow. Mirrors the Flutter orb (solid surface + shadow). */
-  background: var(--dsw-alias-bg-layer-3, #2a2f36);
-  box-shadow:
-    0 0 0 1px var(--dsw-alias-border-l2, rgba(255, 255, 255, 0.12)),
-    0 4px 14px rgba(0, 0, 0, 0.35);
-  transition:
-    background-color 0.28s ease-in-out,
-    box-shadow 0.28s ease-in-out,
-    transform 0.18s ease-in-out;
+  /* The inactive surface (off and connecting), a shade below the raised one. */
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-3, #2a2f36) 82%, black);
+  /* The five-bar glyph runs a few steps deeper on this lighter surface, so the
+   * bars stay legible instead of washing into it (dark mode overrides below). */
+  --voice-wave-1: #4a6cbb;
+  --voice-wave-2: #4260aa;
+  --voice-wave-3: #3a5599;
+  --voice-wave-4: #324a88;
+  --voice-wave-5: #2a3f77;
+  color: var(--dsw-alias-label-primary, #e6e9ed);
+  cursor: pointer;
 }
 
-.orb.lit {
-  /* The core body is painted with the phase color (inline); keep the elevation
-   * and let the halo provide the colored glow. */
-  box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, 0.12),
-    0 4px 14px rgba(0, 0, 0, 0.35);
+.control:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
 }
 
-.orb.connecting {
-  /* No capture yet: a white glow that pulses to signal the link is warming. */
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+/* A live button: the send hue, or the signal colour when muted or failed
+ * (`--voice-fill` carries whichever applies). */
+.control.lit {
+  background: var(--voice-fill);
 }
 
-.orb.connecting .glyph {
-  color: var(--dsw-alias-label-primary-foreground, #ffffff);
+/* The voice is on: the pointer lightens it, the same way in both themes. */
+.control.lit:hover {
+  background: var(--voice-hover);
+}
+
+/* Dark mode: the inactive button is black, and the glyph ramp returns to the
+ * pale-to-blue pair it was drawn for. Hover matches this rule rather than the
+ * light theme's, so an inactive button is never repainted by the pointer —
+ * there the icon carries the feedback. */
+body[data-ds-dark-theme] .control:not(.lit) {
+  background: #000;
+}
+
+body[data-ds-dark-theme] .control {
+  --voice-wave-1: #c3d4ee;
+  --voice-wave-2: #aec8f0;
+  --voice-wave-3: #98b9ef;
+  --voice-wave-4: #80a9ed;
+  --voice-wave-5: #6395e7;
 }
 
 /* Only the voice bars move while the connection is opening. */
@@ -129,42 +99,6 @@
   50% { transform: scaleY(1); opacity: 1; }
 }
 
-.orb.muted .glyph {
-  /* Muted stays on the warn colour so it is unmistakable. */
-  color: var(--dsw-alias-state-warn-primary, #c2544d);
-}
-
-/* The halo: a colored glow that sits behind the core and breathes while live. */
-.halo {
-  position: absolute;
-  inset: -2px;
-  border-radius: 50%;
-  corner-shape: round;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.28s ease-in-out;
-}
-
-.halo.on {
-  opacity: 1;
-}
-
-.halo.pulse {
-  animation: halo-breath 1.1s ease-in-out infinite alternate;
-  will-change: transform, box-shadow;
-}
-
-@keyframes halo-breath {
-  from {
-    transform: scale(1);
-    box-shadow: 0 0 6px 1px var(--halo);
-  }
-  to {
-    transform: scale(1.22);
-    box-shadow: 0 0 22px 5px var(--halo);
-  }
-}
-
 .glyph {
   display: inline-flex;
   align-items: center;
@@ -172,94 +106,23 @@
   line-height: 0;
 }
 
-/* The action menu's fixed-height slot, absolutely positioned just below the
- * orb. Revealing the buttons on hover fills the already-reserved slot, so
- * nothing moves — the orb is at a fixed coordinate and cannot be pushed.
- */
-.menuSlot {
-  position: absolute;
-  top: 52px; /* 46 (orb) + 6 (gap) */
-  left: 50%;
-  transform: translateX(-50%);
-  height: 38px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+/* The icon answers the pointer once, with the background left untouched. The
+ * animation only replays when hover ends and starts again. */
+.control:hover .glyph,
+.control:focus-visible .glyph {
+  animation: voice-icon-nudge 420ms cubic-bezier(0.22, 0.9, 0.3, 1);
 }
 
-/* The separate action menu beneath the orb: mute + read back output. */
-.actionsMenu {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 6px;
-  border-radius: 20px;
-  background: var(--dsw-alias-bg-layer-2, #1c2128);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  animation: fade-in 0.12s ease-out;
+@keyframes voice-icon-nudge {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.16); }
+  100% { transform: scale(1); }
 }
 
-.actionBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--dsw-alias-label-secondary, #9aa4b2);
-  cursor: pointer;
-  line-height: 0;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.actionBtn:hover {
-  background: var(--dsw-alias-control-overlay, rgba(255, 255, 255, 0.06));
-  color: var(--dsw-alias-label-primary, #e6e9ed);
-}
-
-/* The "turn off voice" power button: tinted so it reads as a stop/terminating
- * action, distinct from the neutral mute + read-back buttons beside it. */
-.powerBtn {
-  color: var(--dsw-alias-state-error-primary, #c2544d);
-}
-
-/* The active-time clock's fixed-height slot, absolutely positioned at the very
- * bottom of the dock. Shown only while active; the slot never reflows anything
- * because the orb is at a fixed coordinate.
- */
-.timerSlot {
-  position: absolute;
-  top: 96px; /* 52 (menu) + 38 (menu) + 6 (gap) */
-  left: 50%;
-  transform: translateX(-50%);
-  height: 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* The live active-time clock under the action menu. */
-.clock {
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  color: var(--dsw-alias-label-muted, #6b7280);
-  line-height: 1;
-}
-
-.clock.clockActive {
-  color: var(--dsw-alias-label-secondary, #9aa4b2);
-}
-
-.inlineControls { position: relative; flex: none; width: 34px; height: 34px; transform: translateY(-2px); }
-.inlineControls .inlineButton { display: inline-flex; flex: 0 0 32px; align-items: center; justify-content: center; box-sizing: border-box; min-width: 32px; max-width: 32px; min-height: 32px; max-height: 32px; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--dsw-alias-label-primary); cursor: pointer; }
-.inlineControls .inlineButton { corner-shape: round; }
-.inlineControls .inlinePrimary { flex: none; width: 34px; height: 34px; min-width: 34px; max-width: 34px; min-height: 34px; max-height: 34px; }
-.inlineControls .inlinePrimary, .inlineControls .inlinePrimary:hover { border-radius: 50%; corner-shape: round; background: var(--dsw-alias-bg-layer-3, #2a2f36); }
-.inlineButton:hover { background: var(--dsw-specific-bubble); }
-.inlineButton:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
-.inlineHint {
+/* The hint: the action name (or a leftover failure), revealed on hover. It is
+ * rendered only while the voice is off, so a live button never wears a status
+ * label. */
+.hint {
   position: absolute;
   right: 0;
   bottom: calc(100% + 10px);
@@ -281,43 +144,16 @@
   opacity: 0;
   transition: opacity 80ms ease, visibility 80ms;
 }
-.inlinePrimary:hover + .inlineHint,
-.inlinePrimary:focus-visible + .inlineHint {
+
+.control:hover + .hint,
+.control:focus-visible + .hint {
   visibility: visible;
   opacity: 1;
   transition-delay: 100ms;
 }
-.inlineMenu {
-  position: absolute; right: calc(100% + 6px); top: -2px; z-index: 5;
-  display: flex; align-items: center; gap: 2px; padding: 2px 5px;
-  border: 1px solid var(--dsw-alias-border-l2, rgba(255, 255, 255, 0.12));
-  border-radius: 22px; corner-shape: round; background: var(--dsw-alias-bg-layer-2, #1c2128);
-  visibility: hidden; opacity: 0; transform: translateX(8px) scale(.94); transform-origin: right center;
-  transition: opacity 160ms ease, transform 160ms ease, visibility 160ms;
-}
-.inlineMenu::after { content: ''; position: absolute; left: 100%; top: 0; width: 8px; height: 100%; }
-.inlineControls:hover .inlineMenu { visibility: visible; opacity: 1; transform: translateX(0) scale(1); }
-.inlineTimer { font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; padding: 0 3px; }
-.inlineControls .inlinePrimary.inlinePulse {
-  background-image: radial-gradient(circle at 32% 25%, rgba(255, 255, 255, 0.45), transparent 65%);
-  animation: inlineVoicePulse 1.1s ease-in-out infinite alternate;
-}
-@keyframes inlineVoicePulse {
-  from {
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.2),
-      0 0 0 1px var(--voice-color),
-      0 0 4px 1px color-mix(in srgb, var(--voice-color) 40%, transparent);
-  }
-  to {
-    box-shadow:
-      inset 0 0 8px 2px rgba(255, 255, 255, 0.55),
-      0 0 0 4px color-mix(in srgb, var(--voice-color) 75%, transparent),
-      0 0 16px 5px color-mix(in srgb, var(--voice-color) 65%, transparent);
-  }
-}
+
 @media (prefers-reduced-motion: reduce) {
   .connecting .glyph svg rect { animation: none; }
-  .inlineMenu { transition: none; }
-  .inlineControls .inlinePrimary.inlinePulse { animation: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--voice-color) 28%, transparent); }
+  .control:hover .glyph,
+  .control:focus-visible .glyph { animation: none; }
 }

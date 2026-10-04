@@ -140,6 +140,12 @@ The official DeepSeek macOS download (`https://download.deepseek.com/desktop/dsh
 
 In the keyless check, Voice settings displayed `Could not save or load voice credentials on the host. Re-enter any missing key before refreshing.` No key or provider call was used, so this check did not establish whether configured voice worked. The owner subsequently reported that Desktop works after adding provider keys. The isolated test app was stopped, and the earlier working Desktop profile was not changed by this check. Live behavior of this exact isolated archive was not independently verified.
 
+### VoiceMesh Plugins setup check — 2026-10-04
+
+The private archive `/Users/hgp/DeepSeek/voicemesh-dsh-voice/.release/package-1791137218595/voicemesh-dsh-voice-0.1.0-alpha.1.tgz` has SHA-256 `4b5dfea955a428adca95e2f3da8939dec25a1a2274d16c194569d30dc70c1472`. Its client bundle carries the VoiceMesh integration-source marker and registers `plugins.bundle.config` and `plugins.bundle.activation`; it does not register the former Settings section or automatic setup overlay. The packager reads the client source from this repository and the host source from the Harness checkout without writing there.
+
+In a fresh isolated published Harness `0.2.0-rc.2` Web profile, both VoiceMesh rows loaded. Enabling VoiceMesh from the Plugins list with no configured provider showed **Finish voice setup**. **Later** dismissed it; switching the bundle off and on showed it again. **Go to setup** opened VoiceMesh's bundle detail with the existing Voice settings form and two running components. The empty composer showed one voice control, typing showed Send instead, and clearing restored the voice control. The test used no provider key or paid call and stopped its disposable Web server. The matching official Desktop check was not run because the Mac was locked; the working Web and Desktop profiles were not changed.
+
 ## Publish decision
 
 Do not publish while any frozen-candidate entry is pending or while the rights, notices, and npm scope evidence remain unresolved. A candidate that repeats the v60 content or manifest failures is rejected.

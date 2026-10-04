@@ -47,7 +47,16 @@ export interface VoicePhaseState {
   lastReply: string
   /** Speech-detection health (silero ready vs. energy fallback). */
   vadStatus: VoiceVadStatus | null
+  /**
+   * A transient, non-failure notice (for example an update the provider never
+   * confirmed). It clears itself after {@link VOICE_NOTICE_MS} and never affects
+   * the orb, the buttons, or the session: the voice is still working.
+   */
+  notice: string | null
 }
+
+/** How long a transient voice notice stays on screen before it clears itself. */
+export const VOICE_NOTICE_MS = 4000
 
 /** The reactive voice runtime store: snapshot source plus explicit setters. */
 export interface VoiceRuntimeStore {
@@ -60,6 +69,8 @@ export interface VoiceRuntimeStore {
   setTranscript(transcript: string): void
   setLastReply(lastReply: string): void
   setVadStatus(status: VoiceVadStatus | null): void
+  /** Publish a transient notice, or clear it early with null. */
+  setNotice(notice: string | null): void
 }
 
 /** Initial runtime state: voice off, no error, silent. */
@@ -71,6 +82,7 @@ export const INITIAL_VOICE_STATE: VoicePhaseState = {
   transcript: '',
   lastReply: '',
   vadStatus: null,
+  notice: null,
 }
 
 /**
@@ -85,11 +97,29 @@ export function createVoiceRuntimeStore(): VoiceRuntimeStore {
     INITIAL_VOICE_STATE,
     { flush: 'raf' },
   )
+  // One pending expiry at a time: a newer notice restarts the clock, and the
+  // notice is dropped when the voice stops or a real failure replaces it.
+  let noticeTimer: ReturnType<typeof setTimeout> | undefined
+  const setNotice = (notice: string | null): void => {
+    clearTimeout(noticeTimer)
+    noticeTimer = undefined
+    store.update((s) => { s.notice = notice })
+    if (notice === null) return
+    noticeTimer = setTimeout(() => { noticeTimer = undefined; store.update((s) => { s.notice = null }) }, VOICE_NOTICE_MS)
+  }
   return {
     getSnapshot: store.getSnapshot,
     subscribe: store.subscribe,
-    setPhase: phase => store.update((s) => { s.phase = phase }),
-    setError: error => store.update((s) => { s.error = error }),
+    setPhase: phase => store.update((s) => {
+      s.phase = phase
+      if (phase === 'idle') s.notice = null
+    }),
+    setError: error => store.update((s) => {
+      s.error = error
+      // A real failure supersedes a transient notice.
+      if (error !== null) s.notice = null
+    }),
+    setNotice,
     setLevel: level => store.update((s) => { s.level = level }),
     setActiveSeconds: seconds => store.update((s) => { s.activeSeconds = seconds }),
     setTranscript: transcript => store.update((s) => { s.transcript = transcript }),
@@ -127,7 +157,8 @@ export function phaseColor(phase: VoicePhase, error: string | null): string {
     case 'transcribing':
       return 'var(--dsw-alias-state-warn-primary, #f2a33c)'
     case 'speaking':
-      return 'var(--dsw-alias-state-success-primary, #2ea043)'
+      // Speaking keeps the listening colour so the orb never shifts to green.
+      return 'var(--dsw-alias-brand-primary, #4b8bf5)'
     case 'standby':
       return `color-mix(in srgb, ${phaseColor('listening', null)} 45%, black)`
     case 'idle':

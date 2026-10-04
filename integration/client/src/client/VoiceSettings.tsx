@@ -1,14 +1,16 @@
+import { LocalModelSetup, type LocalInstallAction, type LocalInstallProgress } from './LocalModelSetup.tsx'
 import type { VoiceCredentialSlot } from './voice-credentials.ts'
 import { voiceDisplayName, type LocalVoiceModel } from './voice-catalog.ts'
+import type { StsModelListing } from './sts-model.ts'
+import { thinkingLevelLabel } from './locales.ts'
 /** Voice preferences, write-only host credential setup, and provider diagnostics. */
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { IconChevronDownOutline14, Button, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
-import type { SettingsSectionOwnerProps } from '@deepseek-ai/dsh-client-ui-settings/client'
+import { IconChevronDownOutlineRegular, Button, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import { resolveStsSettings } from './sts-settings.ts'
 import type { VoiceConfig, BakedVoiceConfigActions } from './config.ts'
-import { STT_ENGINES, TTS_ENGINES, normalizeVoiceConfig, CUSTOM_CONVERSATIONAL_ENDPOINTS, pipelineModel, pipelineVoice } from './config.ts'
+import { STT_ENGINES, TTS_ENGINES, normalizeVoiceConfig, CUSTOM_CONVERSATIONAL_ENDPOINTS, pipelineModel, pipelineVoice, isLocalSttEngine, localSttEngine, wakeLocale, type WakeLocale } from './config.ts'
 import type { SttHealth, ConversationalHealth, ConversationalModels } from './dsh-transport.ts'
 import type { VoicePhaseState } from './state.ts'
 import css from './VoiceSettings.module.css'
@@ -23,6 +25,8 @@ export interface VoiceSettingsInjected extends VoiceCatalogActions {
   sources: {
     voice: ObservableSnapshot<VoicePhaseState>
     config: ObservableSnapshot<VoiceConfig>
+    /** App-selected locale; optional only for settings entries written before locale-aware wake setup. */
+    locale?: ObservableSnapshot<{ readonly active: string }>
   }
   /** Save a write-only key on the host; the promise settles after durable storage. */
   saveCredential: (slot: VoiceCredentialSlot, value: string) => Promise<void>
@@ -32,9 +36,15 @@ export interface VoiceSettingsInjected extends VoiceCatalogActions {
   /** Discover key-accessible OpenAI recognition or synthesis models. */
   listPipelineModels?: (provider: 'openai' | 'gemini', kind: 'stt' | 'tts', signal: AbortSignal) => Promise<string[]>
   /** Discover installed native speech models. */
+  /** Install optional local speech packs and read installation progress. */
+  installLocalModels?: LocalInstallAction
+  /** Read selected archive size without downloading the archive. */
+  localModelDownloadSize?: (request: import('./LocalModelSetup.tsx').LocalInstallRequest, signal: AbortSignal) => Promise<number | null>
   listLocalModels?: (signal: AbortSignal) => Promise<LocalVoiceModel[]>
-  /** Discover conversational STS models for the selected provider and saved key. */
-  listStsModels: (signal: AbortSignal) => Promise<string[]>
+  /** Check that the selected wake pack can run in this app's local runtime. */
+  wakeReady?: (modelId: string, signal: AbortSignal) => Promise<boolean>
+  /** Discover conversational STS models, each with whether it acts on the thinking preference. */
+  listStsModels: (signal: AbortSignal) => Promise<readonly StsModelListing[]>
   /** Probe the selected STT provider’s connectivity/auth with the current key. */
   probe(): Promise<SttHealth>
   /** Probe the configured conversational model (reachability + key + model). */
@@ -47,7 +57,7 @@ export interface VoiceSettingsInjected extends VoiceCatalogActions {
 
 /** Full props of the setup page. */
 export type VoiceSettingsProps =
-  SettingsSectionOwnerProps
+  PropsRuntime<'plugins.bundle.config'>
   & VoiceSettingsInjected
   & PropsLocale<'voice'>
 
@@ -67,6 +77,13 @@ const DEEPGRAM_TTS_IDS = new Set(['deepgram', 'aura'])
 /** Engine ids that consume the xAI credential (Grok). */
 const GROK_STT_IDS = new Set(['grok'])
 const GROK_TTS_IDS = new Set(['grok'])
+const FALLBACK_LOCALE = { active: 'en' }
+const subscribeNever = (): (() => void) => () => {}
+
+/** Whether an installed wake pack serves the active app locale. */
+function supportsWakeLocale(model: LocalVoiceModel, locale: WakeLocale): boolean {
+  return model.kind === 'kws' && model.languages.some(language => language.toLowerCase().split('-')[0] === locale)
+}
 
 /** The setup page body. */
 export function VoiceSettings({
@@ -77,6 +94,9 @@ export function VoiceSettings({
   probeSts,
   listStsModels,
   listLocalModels,
+  wakeReady,
+  installLocalModels,
+  localModelDownloadSize,
   listPipelineModels,
   listVoices,
   previewVoice,
@@ -87,6 +107,9 @@ export function VoiceSettings({
 }: VoiceSettingsProps) {
   const voice = useSyncExternalStore(sources.voice.subscribe, sources.voice.getSnapshot)
   const rawConfig = useSyncExternalStore(sources.config.subscribe, sources.config.getSnapshot)
+  const localeSnapshot = useSyncExternalStore(sources.locale?.subscribe ?? subscribeNever,
+    sources.locale?.getSnapshot ?? (() => FALLBACK_LOCALE))
+  const selectedWakeLocale = wakeLocale(localeSnapshot.active)
   const config = normalizeVoiceConfig(rawConfig)
   const [keyInput, setKeyInput] = useState('')
   const [customKey, setCustomKey] = useState('')
@@ -121,6 +144,9 @@ export function VoiceSettings({
   }, [config.ttsEngine, config.openaiTtsModel, config.geminiTtsModel, ttsVoice, config.openaiStsCredential,
     config.geminiStsCredential, listVoices, actions])
   const [localModels, setLocalModels] = useState<LocalVoiceModel[]>([])
+  const [localModelsLoaded, setLocalModelsLoaded] = useState(false)
+  const [wakeInstall, setWakeInstall] = useState<LocalInstallProgress | null>(null)
+  const wakeSetupAttempts = useRef(new Set<WakeLocale>())
   const [localVoiceLabel, setLocalVoiceLabel] = useState('')
   useEffect(() => {
     setLocalVoiceLabel('')
@@ -131,17 +157,84 @@ export function VoiceSettings({
     }).catch(() => { /* The picker reports catalog failures; the pill retains the selected ID. */ })
     return () => abort.abort()
   }, [config.ttsEngine, ttsVoice, ttsProvider, listVoices])
+  async function refreshInstalledModels(): Promise<void> {
+    if (!listLocalModels) return
+    const signal = new AbortController().signal
+    const models = await listLocalModels(signal)
+    setLocalModels(models)
+    const recognition = models.find(model => model.kind === 'stt' && (model.engine ?? 'vosk') === localSttEngine(config.sttEngine))
+    if (!config.localSttModel && recognition) actions.setLocalSttModel(recognition.id)
+    if (!config.localTtsVoice && models.some(model => model.kind === 'tts')) {
+      const catalog = await listVoices({ provider: 'kokoro', mode: 'tts', model: '' }, signal)
+      if (catalog.voices[0]) actions.setLocalTtsVoice(catalog.voices[0].id)
+    }
+  }
   const [localError, setLocalError] = useState('')
   useEffect(() => {
-    if (!listLocalModels || (config.sttEngine !== 'vosk' && config.ttsEngine !== 'kokoro')) return
+    if (!config.wakeEnabled || !localModelsLoaded || !installLocalModels || config.wakeModelDefaultLocale === ''
+      || wakeSetupAttempts.current.has(selectedWakeLocale)) return
+    const pack = localModels.find(model => supportsWakeLocale(model, selectedWakeLocale))
+    const install = (): void => {
+      wakeSetupAttempts.current.add(selectedWakeLocale)
+      void installLocalModels({ kind: 'kws', language: selectedWakeLocale, precision: 'fp32' }, new AbortController().signal)
+        .then(setWakeInstall).catch((error: Error) => { setLocalError(error.message); setWakeInstall(null) })
+    }
+    void installLocalModels(null, new AbortController().signal).then(status => {
+      // A running installer belongs to an earlier request. Do not consume the current locale's
+      // one automatic attempt: its matching pack still needs installation after this work ends.
+      if (status.running) { setWakeInstall(status); return }
+      if (status.error !== null) { wakeSetupAttempts.current.add(selectedWakeLocale); setLocalError(status.error); return }
+      if (pack === undefined) { install(); return }
+      if (wakeReady === undefined) return
+      void wakeReady(pack.id, new AbortController().signal).then(ready => { if (!ready) install() })
+        .catch((error: Error) => setLocalError(error.message))
+    }).catch((error: Error) => setLocalError(error.message))
+  }, [config.wakeEnabled, config.wakeModelDefaultLocale, localModelsLoaded, localModels, installLocalModels, wakeReady, selectedWakeLocale])
+  useEffect(() => {
+    if (!config.wakeEnabled) wakeSetupAttempts.current.clear()
+  }, [config.wakeEnabled])
+  useEffect(() => {
+    if (!wakeInstall?.running || !installLocalModels) return
+    const timer = setInterval(() => {
+      void installLocalModels(null, new AbortController().signal).then(status => {
+        setWakeInstall(status)
+        if (!status.running && status.error === null && status.phase === 'complete') void refreshInstalledModels()
+      }).catch((error: Error) => { setLocalError(error.message); setWakeInstall(null) })
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [wakeInstall?.running, installLocalModels])
+  useEffect(() => {
+    if (!listLocalModels || (!isLocalSttEngine(config.sttEngine) && config.ttsEngine !== 'kokoro' && !config.wakeEnabled)) return
     const abort = new AbortController()
-    void listLocalModels(abort.signal).then((models) => { if (!abort.signal.aborted) { setLocalModels(models); setLocalError('') } })
+    void listLocalModels(abort.signal).then((models) => { if (!abort.signal.aborted) { setLocalModels(models); setLocalModelsLoaded(true); setLocalError('') } })
       .catch((error: Error) => { if (!abort.signal.aborted) setLocalError(error.message) })
     return () => abort.abort()
-  }, [config.sttEngine, config.ttsEngine, listLocalModels])
+  }, [config.sttEngine, config.ttsEngine, config.wakeEnabled, listLocalModels])
+  // Keep the saved local model consistent with the selected local engine: a model installed for
+  // the other engine would load the wrong decoder under this engine's label.
+  useEffect(() => {
+    if (!isLocalSttEngine(config.sttEngine)) return
+    const wanted = localSttEngine(config.sttEngine)
+    const installed = localModels.filter(model => model.kind === 'stt' && (model.engine ?? 'vosk') === wanted)
+    if (installed.some(model => model.id === config.localSttModel)) return
+    if (installed[0] !== undefined) actions.setLocalSttModel(installed[0].id)
+  }, [config.sttEngine, config.localSttModel, localModels, actions])
+  useEffect(() => {
+    if (config.wakePhraseDefaultLocale === selectedWakeLocale) return
+    if (config.wakePhraseDefaultLocale !== '') actions.setWakeDefaultPhrase(selectedWakeLocale)
+  }, [config.wakePhraseDefaultLocale, selectedWakeLocale, actions])
+  useEffect(() => {
+    if (!config.wakeEnabled || !localModelsLoaded) return
+    if (config.wakeModelDefaultLocale === '') return
+    const installed = localModels.filter(model => supportsWakeLocale(model, selectedWakeLocale))
+    const selected = installed.find(model => model.id === config.wakeModelId)
+    if (selected === undefined || config.wakeModelDefaultLocale !== selectedWakeLocale) {
+      actions.setWakeDefaultModel(installed[0]?.id ?? '', selectedWakeLocale)
+    }
+  }, [config.wakeEnabled, config.wakeModelId, config.wakeModelDefaultLocale, localModelsLoaded, localModels, selectedWakeLocale, actions])
   const activeVoice = activeMode === 'sts' ? selectedSts.voice : ttsVoice
   const activeProvider = activeMode === 'sts' ? t(`sts.${selectedSts.provider}`)
-    : TTS_ENGINES.find(engine => engine.id === config.ttsEngine)?.label ?? config.ttsEngine
+    : TTS_ENGINES.find(engine => engine.id === config.ttsEngine)?.label ?? t('settings.chooseSynthesis')
   const nativeBackchannels = config.voiceMode === 'sts' && config.stsProvider === 'openai-live'
   const pickerSelection: VoiceSelection = picker === 'sts'
     ? { provider: selectedSts.provider, mode: 'sts', model: selectedSts.model }
@@ -153,7 +246,9 @@ export function VoiceSettings({
     else actions.setStsVoice(value)
   }
   const [stsCredentialInput, setStsCredentialInput] = useState('')
-  const [stsModels, setStsModels] = useState<string[]>([])
+  const [stsModels, setStsModels] = useState<readonly StsModelListing[]>([])
+  /** The thinking states the selected model offers, or null when it offers no choice. */
+  const stsThinkingLevels = stsModels.find(model => model.id === selectedSts.model)?.thinking ?? null
   const [stsModelsState, setStsModelsState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [modelsRefresh, setModelsRefresh] = useState(0)
   useEffect(() => {
@@ -168,7 +263,7 @@ export function VoiceSettings({
     if (selectedSts.credential !== '') {
       void listStsModels(request.signal).then((models) => {
         if (request.signal.aborted) return
-        const onlyModel = models.length === 1 ? models[0] : undefined
+        const onlyModel = models.length === 1 ? models[0]?.id : undefined
         if (onlyModel !== undefined) {
           if (selectedSts.provider === 'openai-live') actions.setOpenaiLiveModel(onlyModel)
           else if (selectedSts.provider === 'gemini') actions.setGeminiStsModel(onlyModel)
@@ -327,7 +422,11 @@ export function VoiceSettings({
       if (revision !== convCatalogRevision.current) return
       setConvCatalog(result.providers ?? [])
       if (config.conversationalProvider === 'custom') setCustomModels(result.models)
-      setConvModelsResult(result.ok ? null : { ok: false, text: `${t('conv.modelsFail')}: ${result.message ?? ''}` })
+      // The host explains which registered routes it could not read. That answer explains why a
+      // provider is missing from the dropdown, so it is shown whether or not the call itself failed.
+      setConvModelsResult(result.ok
+        ? result.message === undefined ? null : { ok: true, text: result.message }
+        : { ok: false, text: `${t('conv.modelsFail')}: ${result.message ?? ''}` })
     } catch (error) {
       if (revision !== convCatalogRevision.current) return
       setConvCatalog([])
@@ -349,12 +448,19 @@ export function VoiceSettings({
     setCustomKey('')
     setCustomModels([])
   }
+  // Every registered provider is offered, including one the host could not resolve a model for: its
+  // label carries the host's reason, so the list matches the Models settings instead of quietly
+  // showing fewer routes than are configured.
   const providerOptions: SelectOption[] = [
     { value: '', label: t('conv.chooseProvider') },
-    ...convCatalog.map(provider => ({ value: provider.id, label: provider.name })),
+    ...convCatalog.map(provider => ({
+      value: provider.id,
+      label: provider.models.length === 0 && provider.reason !== undefined
+        ? `${provider.name} — ${provider.reason}` : provider.name,
+    })),
   ]
-  const sttEngineOptions: SelectOption[] = STT_ENGINES.map(e => ({ value: e.id, label: e.label }))
-  const ttsEngineOptions: SelectOption[] = TTS_ENGINES.map(e => ({ value: e.id, label: e.label }))
+  const sttEngineOptions: SelectOption[] = [{ value: '', label: t('settings.chooseRecognition') }, ...STT_ENGINES.map(e => ({ value: e.id, label: e.label }))]
+  const ttsEngineOptions: SelectOption[] = [{ value: '', label: t('settings.chooseSynthesis') }, ...TTS_ENGINES.map(e => ({ value: e.id, label: e.label }))]
 
 
   const sttUsesDeepgram = DEEPGRAM_STT_IDS.has(config.sttEngine)
@@ -365,6 +471,17 @@ export function VoiceSettings({
   // preferring recognition when both consume it.
   const dgHome: 'stt' | 'tts' | null = sttUsesDeepgram ? 'stt' : ttsUsesDeepgram ? 'tts' : null
   const xaiHome: 'stt' | 'tts' | null = sttUsesGrok ? 'stt' : ttsUsesGrok ? 'tts' : null
+  const ttsReady = config.ttsEngine === '' ? false : config.ttsEngine === 'kokoro'
+    ? ttsVoice !== ''
+    : config.ttsEngine === 'fish'
+      ? Boolean(config.fishCredential) && fishKey.trim() === '' && ttsVoice !== ''
+      : config.ttsEngine === 'openai'
+        ? Boolean(config.openaiStsCredential && config.openaiTtsModel) && openaiKey.trim() === '' && ttsVoice !== ''
+        : config.ttsEngine === 'gemini'
+          ? Boolean(config.geminiStsCredential && config.geminiTtsModel) && geminiKey.trim() === '' && ttsVoice !== ''
+          : ttsUsesGrok
+            ? Boolean(config.xaiCredential) && xaiCredentialInput.trim() === '' && ttsVoice !== ''
+            : Boolean(config.deepgramCredential) && keyInput.trim() === '' && ttsVoice !== ''
 
   const dgKeyField = dgHome === null ? null : <CredentialField t={t} id="voice-deepgram-key"
     label={t('key.label')} configured={Boolean(config.deepgramCredential)} value={keyInput}
@@ -407,6 +524,9 @@ export function VoiceSettings({
         <SelectField id="voice-response-detail" label={t('settings.responseDetail')} value={config.responseDetail}
           options={[{ value: 'concise', label: t('settings.concise') }, { value: 'detailed', label: t('settings.detailed') }]}
           onChange={value => actions.setResponseDetail(value)} />
+        <SelectField id="voice-progress-mode" label={t('settings.progressMode')} value={config.progressMode}
+          options={[{ value: 'outcome', label: t('settings.outcome') }, { value: 'milestones', label: t('settings.milestones') }]}
+          onChange={value => actions.setProgressMode(value)} />
 
         {!(config.voiceMode === 'sts' && config.stsProvider === 'openai-live') && (
           <div className={css.field}>
@@ -416,62 +536,92 @@ export function VoiceSettings({
           </div>
         )}
 
-        {(config.voiceMode === 'pipeline' || nativeBackchannels) && (
-          <Subsection t={t} title={t('settings.backchannel')}>
-            <ToggleRow
-              label={t('settings.backchannel')}
-              desc={t(nativeBackchannels ? 'settings.backchannelNativeHint' : 'settings.backchannelHint')}
-              checked={config.backchannelEnabled}
-              onChange={() => { actions.setBackchannelEnabled(!config.backchannelEnabled) }}
-            />
-            {config.backchannelEnabled && !nativeBackchannels && (
+        <div className={css.field}>
+          <ToggleRow
+            label={t('settings.backchannel')}
+            desc={t(nativeBackchannels ? 'settings.backchannelNativeHint' : 'settings.backchannelHint')}
+            checked={config.backchannelEnabled}
+            onChange={() => { actions.setBackchannelEnabled(!config.backchannelEnabled) }}
+          />
+        </div>
+
+        <div className={css.field}>
+          <ToggleRow
+            label={t('settings.assistantOrb')}
+            desc={t('settings.assistantOrbHint')}
+            checked={config.assistantOrbEnabled}
+            onChange={() => { actions.setAssistantOrbEnabled(!config.assistantOrbEnabled) }}
+          />
+        </div>
+
+        {config.backchannelEnabled && config.voiceMode === 'pipeline' && (
+          <SliderRow
+            label={t('settings.volume')}
+            value={config.backchannelVolume}
+            min={0.1}
+            max={1}
+            step={0.05}
+            format={v => `${Math.round(v * 100)}%`}
+            onChange={v => actions.setBackchannelVolume(round2(v))}
+          />
+        )}
+
+        <Subsection t={t} title={t('settings.wakeStandbyGroup')}>
+          <Subsection t={t} title={t('settings.wakeGroup')}>
+            <div className={css.field}>
+              <ToggleRow
+                label={t('settings.wake')}
+                desc={t('settings.wakeHint')}
+                checked={config.wakeEnabled}
+                onChange={() => { actions.setWakeEnabled(!config.wakeEnabled) }}
+              />
+            </div>
+
+            {config.wakeEnabled && (
               <>
-                <SliderRow
-                  label={t('settings.volume')}
-                  value={config.backchannelVolume}
-                  min={0.1}
-                  max={1}
-                  step={0.05}
-                  format={v => `${Math.round(v * 100)}%`}
-                  onChange={v => actions.setBackchannelVolume(round2(v))}
+                <SelectField id="voice-wake-model" label={t('settings.wakeModel')}
+                  value={config.wakeModelId} options={[{ value: '', label: t('settings.wakeNoModel') }, ...localModels.filter(model => model.kind === 'kws')
+                    .map(model => ({ value: model.id, label: `${model.name} (${model.languages.join(', ')})` }))]}
+                  onChange={value => actions.setWakeModelId(value)} />
+                {installLocalModels && <LocalModelSetup kind="kws" defaultLanguage={selectedWakeLocale} install={installLocalModels} downloadSize={localModelDownloadSize} onInstalled={refreshInstalledModels} t={t} />}
+                <TextField
+                  id="voice-wake-phrase"
+                  label={t('settings.wakePhrase')}
+                  value={config.wakePhrase}
+                  onChange={v => { actions.setWakePhrase(v) }}
+                  placeholder={t('settings.wakePhraseHint')}
+                  hint={t('settings.wakePhraseWordsHint')}
                 />
+                {!config.wakeModelId && <span role="status" className={css.resultFail}>{t('settings.wakeSetupRequired')}</span>}
+                {wakeInstall !== null && <span role="status" className={wakeInstall.error === null ? css.hint : css.resultFail}>
+                  {wakeInstall.error ?? (wakeInstall.running ? t('settings.wakeInstalling') : t('settings.wakeInstalled'))}
+                </span>}
               </>
             )}
           </Subsection>
-        )}
-
-        <Subsection t={t} title={t('settings.standby')}>
-          <span className={css.hint}>{t('settings.standbyHint')}</span>
-          <SliderRow
-            label={t('settings.standbyAfter')}
-            value={config.voiceStandbySec}
-            min={0}
-            max={120}
-            step={1}
-            format={v => `${v}${t('settings.seconds')}`}
-            onChange={v => actions.setVoiceStandbySec(Math.round(v))}
-          />
+          <Subsection t={t} title={t('settings.standby')}>
+            <span className={css.hint}>{t('settings.standbyHint')}</span>
+            <SliderRow
+              label={t('settings.standbyAfter')}
+              value={config.voiceStandbySec}
+              min={0}
+              max={120}
+              step={1}
+              format={v => `${v}${t('settings.seconds')}`}
+              onChange={v => actions.setVoiceStandbySec(Math.round(v))}
+            />
+          </Subsection>
         </Subsection>
 
-        <Subsection t={t} title={t('settings.voiceControls')}>
-          <SelectField id="voice-control-layout" label={t('layout.label')} value={config.controlLayout ?? 'orb'}
-            options={[{ value: 'orb', label: t('layout.orb') }, { value: 'panel', label: t('layout.panel') }]}
-            onChange={value => actions.setControlLayout(value)} />
-
-          <div className={css.field}>
-            <ToggleRow label={t('settings.audioVisualizer')} desc={t('settings.audioVisualizerHint')}
-              checked={config.audioVisualizer} onChange={() => { actions.setAudioVisualizer(!config.audioVisualizer) }} />
-          </div>
-        </Subsection>
       </VoiceCard>
 
       {credentialError && <p role="alert">{t('key.hostError')}</p>}
       <VoiceCard t={t} title={t('speech.title')} desc={`${activeProvider} · ${t(activeMode === 'sts' ? 'speech.sts' : 'speech.pipeline')}`}
-        quickAction={<SelectedVoiceControl label={activeMode === 'tts' && (config.ttsEngine === 'kokoro' || config.ttsEngine === 'fish') && localVoiceLabel ? localVoiceLabel : activeVoice} key={`${activeMode}:${activeProvider}:${activeVoice}:${selectedSts.model}`}
+        quickAction={activeMode === 'sts' || config.ttsEngine !== '' ? <SelectedVoiceControl label={activeMode === 'tts' && (config.ttsEngine === 'kokoro' || config.ttsEngine === 'fish') && localVoiceLabel ? localVoiceLabel : activeVoice} key={`${activeMode}:${activeProvider}:${activeVoice}:${selectedSts.model}`}
           selection={activeMode === 'sts' ? { provider: selectedSts.provider, mode: 'sts', model: selectedSts.model }
             : { provider: ttsProvider, mode: 'tts', model: pipelineModel(config, 'tts') }}
           voice={activeVoice} previewVoice={previewVoice} t={t}
-          onChoose={() => { setQuickPicker(true); setPicker(activeMode) }} />}>
+          onChoose={() => { setQuickPicker(true); setPicker(activeMode) }} /> : undefined}>
 
 
         <div className={css.field}>
@@ -496,7 +646,8 @@ export function VoiceSettings({
               {stsModelsState === 'ready' && stsModels.length > 0 && <div className={css.field}>
                 <label className={css.label} htmlFor="voice-sts-model">{t('conv.model')}</label>
                 <MenuModel id="voice-sts-model" placeholder={t('sts.chooseModel')}
-                  value={stsModels.includes(selectedSts.model) ? selectedSts.model : ''} models={stsModels}
+                  value={stsModels.some(model => model.id === selectedSts.model) ? selectedSts.model : ''}
+                  models={stsModels.map(model => model.id)}
                   onChange={value => config.stsProvider === 'openai-live' ? actions.setOpenaiLiveModel(value) : config.stsProvider === 'gemini' ? actions.setGeminiStsModel(value) : config.stsProvider === 'openai' ? actions.setOpenaiStsModel(value) : actions.setStsModel(value)} />
               </div>}
               {(stsModelsState !== 'ready' || stsModels.length === 0) && <div className={css.btnRow}>
@@ -509,6 +660,19 @@ export function VoiceSettings({
                 onClick={() => { setQuickPicker(false); setPicker('sts') }}>{voiceDisplayName(selectedSts.voice) || t('picker.open')}</button>
             </div>
           </div>
+          {/* Shown only for a model that selects between two thinking states, so the choice never
+              appears for a model whose setup ignores it. The catalog names the states the way the
+              model names them (`low`/`high`, `none`/`high`), and each is labelled in the reader's
+              language rather than shown as the wire token. */}
+          {stsThinkingLevels !== null && <div className={css.field}>
+            <span className={css.label} id="voice-sts-thinking-label">{t('sts.thinking')}</span>
+            <div className={css.btnRow} role="radiogroup" aria-labelledby="voice-sts-thinking-label">
+              <label><input type="radio" name="voice-sts-thinking" checked={!config.stsThinking}
+                onChange={() => { actions.setStsThinking(false) }} />{thinkingLevelLabel(t, stsThinkingLevels.off)}</label>
+              <label><input type="radio" name="voice-sts-thinking" checked={config.stsThinking}
+                onChange={() => { actions.setStsThinking(true) }} />{thinkingLevelLabel(t, stsThinkingLevels.on)}</label>
+            </div>
+          </div>}
           <div className={css.btnRow}>
             <Button variant="outline" size="sm" disabled={stsBusy || selectedSts.credential === '' || stsCredentialInput.trim() !== ''}
               onClick={() => { void testSts() }}>{stsBusy ? t('conv.checking') : t('sts.test')}</Button>
@@ -519,7 +683,7 @@ export function VoiceSettings({
         </> : <>
           <VoiceCard t={t} title={t('settings.recognitionTitle')}
             desc={[STT_ENGINES.find(engine => engine.id === config.sttEngine)?.label,
-              config.sttEngine === 'vosk' ? localModels.find(model => model.id === config.localSttModel)?.name ?? config.localSttModel : ''].filter(Boolean).join(' · ')}>
+              isLocalSttEngine(config.sttEngine) ? localModels.find(model => model.id === config.localSttModel)?.name ?? config.localSttModel : ''].filter(Boolean).join(' · ')}>
             <SelectField
               id="voice-stt-engine"
               label={t('settings.recognition')}
@@ -527,10 +691,11 @@ export function VoiceSettings({
               options={sttEngineOptions}
               onChange={v => actions.setSttEngine(v)}
             />
-            {config.sttEngine === 'vosk' && <SelectField id="voice-local-stt-model" label={t('local.model')}
-              value={config.localSttModel} options={[{ value: '', label: t('local.select') }, ...localModels.filter(model => model.kind === 'stt')
+            {isLocalSttEngine(config.sttEngine) && <SelectField id="voice-local-stt-model" label={t('local.model')}
+              value={config.localSttModel} options={[{ value: '', label: t('local.select') }, ...localModels.filter(model => model.kind === 'stt' && (model.engine ?? 'vosk') === localSttEngine(config.sttEngine))
                 .map(model => ({ value: model.id, label: `${model.name} (${model.languages.join(', ')})` }))]}
               onChange={value => actions.setLocalSttModel(value)} />}
+            {isLocalSttEngine(config.sttEngine) && installLocalModels && <LocalModelSetup kind="stt" install={installLocalModels} downloadSize={localModelDownloadSize} onInstalled={refreshInstalledModels} t={t} />}
             {localError && <span role="status" className={css.resultFail}>{localError}</span>}
             {dgHome === 'stt' ? dgKeyField : null}
             {xaiHome === 'stt' ? xaiCredentialField : null}
@@ -539,7 +704,7 @@ export function VoiceSettings({
             {config.sttEngine === 'fish' && <span className={css.hint}>{t('settings.fishBatch')}</span>}
             <div className={css.btnRow}>
               <Button variant="outline" size="sm" onClick={testStt}
-                disabled={busy || (config.sttEngine === 'gemini' ? !config.geminiStsCredential || !config.geminiSttModel || geminiKey.trim() !== '' : config.sttEngine === 'openai' ? !config.openaiStsCredential || !config.openaiSttModel || openaiKey.trim() !== '' : config.sttEngine === 'fish' ? !config.fishCredential || fishKey.trim() !== '' : config.sttEngine === 'vosk' ? !config.localSttModel : sttUsesGrok ? config.xaiCredential.trim() === '' || xaiCredentialInput.trim() !== '' : config.deepgramCredential.trim() === '' || keyInput.trim() !== '')}>
+                disabled={busy || !config.sttEngine || (config.sttEngine === 'gemini' ? !config.geminiStsCredential || !config.geminiSttModel || geminiKey.trim() !== '' : config.sttEngine === 'openai' ? !config.openaiStsCredential || !config.openaiSttModel || openaiKey.trim() !== '' : config.sttEngine === 'fish' ? !config.fishCredential || fishKey.trim() !== '' : isLocalSttEngine(config.sttEngine) ? !config.localSttModel : sttUsesGrok ? config.xaiCredential.trim() === '' || xaiCredentialInput.trim() !== '' : config.deepgramCredential.trim() === '' || keyInput.trim() !== '')}>
                 {busy ? t('conv.checking') : t('stt.test')}
               </Button>
               {result !== null && <span role="status" className={`${css.result} ${result.ok ? css.resultOk : css.resultFail}`}>{result.text}</span>}
@@ -559,6 +724,7 @@ export function VoiceSettings({
               options={ttsEngineOptions}
               onChange={v => actions.setTtsEngine(v)}
             />
+            {config.ttsEngine === 'kokoro' && installLocalModels && <LocalModelSetup kind="tts" install={installLocalModels} downloadSize={localModelDownloadSize} onInstalled={refreshInstalledModels} t={t} />}
             {dgHome === 'tts' ? dgKeyField : null}
             {xaiHome === 'tts' ? xaiCredentialField : null}
             {(config.ttsEngine === 'openai' || config.ttsEngine === 'gemini') && <>{config.sttEngine !== config.ttsEngine && pipelineCredentialField(config.ttsEngine)}{pipelineModels(config.ttsEngine, 'tts')}</>}
@@ -574,13 +740,15 @@ export function VoiceSettings({
                 <label className={css.label} htmlFor="voice-tts-voice">{t('picker.tts')}</label>
                 <div className={css.modelRow}>
                   <input id="voice-tts-voice" className={css.input} value={ttsVoice}
+                    disabled={config.ttsEngine === 'kokoro' && ttsVoice === ''}
                     spellCheck={false} onChange={event => setTtsVoice(event.target.value)} />
-                  <Button size="sm" onClick={() => { setQuickPicker(false); setPicker('tts') }}>{t('picker.open')}</Button>
+                  <Button size="sm" disabled={config.ttsEngine === 'kokoro' && ttsVoice === ''}
+                    onClick={() => { setQuickPicker(false); setPicker('tts') }}>{t('picker.open')}</Button>
                 </div>
               </div>
             </>}
             <div className={css.btnRow}>
-              <Button variant="outline" size="sm" onClick={testReadBack} disabled={busy}>
+              <Button variant="outline" size="sm" onClick={testReadBack} disabled={busy || !ttsReady}>
                 {busy ? '…' : t('action.tts')}
               </Button>
               {ttsResult !== null && (
@@ -692,7 +860,7 @@ function Subsection({ title, children, t, indicator, summary }: { title: string;
         <span className={css.subsectionTitle}>{title}</span>
         {summary && <span className={css.subsectionSummary} title={summary}>{summary}</span>}
         {indicator}
-        <IconChevronDownOutline14 className={`${css.subsectionChevron}${open ? ` ${css.subsectionChevronOpen}` : ''}`} />
+        <IconChevronDownOutlineRegular className={`${css.subsectionChevron}${open ? ` ${css.subsectionChevronOpen}` : ''}`} />
       </button>
       {open ? <div className={css.subsectionBody}>{children}</div> : null}
     </div>
@@ -730,7 +898,7 @@ function VoiceCard({
             <span className={css.cardTitle}>{title}</span>
             <span className={css.cardDesc}>{desc}</span>
           </span>
-          <IconChevronDownOutline14 className={`${css.cardChevron}${open ? ` ${css.cardChevronOpen}` : ''}`} />
+          <IconChevronDownOutlineRegular className={`${css.cardChevron}${open ? ` ${css.cardChevronOpen}` : ''}`} />
         </button>
         {quickAction}
       </div>
@@ -776,7 +944,7 @@ function SelectField<Value extends string>({
             onClick={() => setOpen(v => !v)}
           >
             <span>{selected?.label ?? value}</span>
-            <IconChevronDownOutline14 className={css.chevron} />
+            <IconChevronDownOutlineRegular className={css.chevron} />
           </button>
         )}
       />
@@ -801,7 +969,7 @@ function MenuModel({ placeholder, id, value, models, onChange }: {
     onSelect={(model) => { setOpen(false); onChange(model) }}
     anchor={<button type="button" id={id} className={css.selector}
       aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(v => !v)}>
-      <span>{value || placeholder}</span><IconChevronDownOutline14 className={css.chevron} />
+      <span>{value || placeholder}</span><IconChevronDownOutlineRegular className={css.chevron} />
     </button>} />
 }
 

@@ -36,7 +36,7 @@ This validates packaging, activation, and initial UI loading. Provider credentia
 
 ### First-run setup
 
-The archive starts with no speech-recognition or speech-synthesis engine selected. Its browser client displays a one-time **Finish voice setup** prompt that directs the user to **Settings → Voice**. From there the user explicitly chooses local or cloud engines and installs any local model packs they want. The setup prompt and blank engine defaults were repacked and verified in an isolated Harness profile on 2026-09-15.
+When VoiceMesh is enabled with incomplete saved selections, its browser client displays a **Finish voice setup** prompt. **Go to setup** opens the VoiceMesh bundle page in **Plugins**, where the user explicitly chooses local or cloud engines and installs any local model packs they want.
 
 ### Setup-route activation
 

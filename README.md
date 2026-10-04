@@ -25,7 +25,7 @@ Composer owns the reusable voice runtime. This repository contains the Harness i
 
 Release artifacts will include Composer's compiled runtime. Users will install one plugin bundle without separately installing Composer. Local speech models are separate downloads.
 
-The `integration/` directory is the initial source snapshot from the working Harness integration. Its development manifests record dependencies; they are not installable packages. Builds currently use the Harness checkout and its installed private Composer artifact. Standalone source builds are not available yet.
+The `integration/` directory owns the VoiceMesh client source. The package build stages that client source in this repository; it still reads the voice host implementation and build dependencies from the selected Harness checkout. It does not write to that checkout. The development manifest is not an installable package.
 
 ## Installation after beta approval
 
@@ -35,7 +35,7 @@ Use the DeepSeek Harness version named in the approved release notes:
 dsh plugin --profile web add ./voicemesh-dsh-voice-<version>.tgz
 ```
 
-On its first web load, VoiceMesh opens a one-time **Finish voice setup** prompt. Open **Settings → Voice** to choose speech recognition, speech synthesis, and a conversational model. Local speech models remain optional downloads; the plugin does not install or select an engine automatically.
+After enabling VoiceMesh with incomplete saved selections, it offers **Finish voice setup**. Choose **Go to setup** to open the VoiceMesh page in **Plugins**, where you choose speech recognition, speech synthesis, and a conversational model. Local speech models remain optional downloads; the plugin does not install or select an engine automatically.
 
 Restart the web profile after installation. To remove the bundle, run:
 

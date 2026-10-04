@@ -1,0 +1,188 @@
+/* Pause and mute sit immediately before the waveform without widening the row. */
+.cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 28px;
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary, #9aa4b2);
+  cursor: pointer;
+  line-height: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.action:hover:not(:disabled) {
+  background: var(--dsw-alias-control-overlay, rgba(255, 255, 255, 0.06));
+  color: var(--dsw-alias-label-primary, #e6e9ed);
+}
+
+.action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Mute reads as a deliberate state rather than decoration; the parked voice
+ * keeps the ordinary action colour and says "Standing by" in words. */
+.muted { color: var(--dsw-alias-state-error-primary, #c2544d); }
+
+/* The live active-time clock, immediately beside the pause button. */
+.timer {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding: 0 3px;
+  color: var(--dsw-alias-label-secondary, #9aa4b2);
+  line-height: 1;
+}
+
+/* Parked voice says so, in the clock's seat beside the resume button. */
+.standby {
+  font-size: 11px;
+  white-space: nowrap;
+  padding: 0 3px;
+  color: var(--dsw-alias-label-secondary, #9aa4b2);
+  line-height: 1;
+}
+
+/* The clock and the parked label are the row's status indicator, and they carry the selection tip:
+   a real button, stripped back to the text it already was, so hover, tap, and tab all reach it
+   without the row gaining a control that looks like one. */
+.tipAnchor { border: 0; background: transparent; font: inherit; cursor: help; }
+.tipAnchor:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary, #3978f6); border-radius: 6px; }
+
+/* The bubble wears the app's tooltip surface: it is read once, has to stay legible over the
+   conversation behind it, and must not be mistaken for another composer row. */
+.tipBubble { position: fixed; z-index: 100; display: grid; gap: 4px; width: max-content;
+  max-width: min(360px, 80vw); padding: 8px 10px; border-radius: 8px; text-align: left;
+  background: var(--dsw-alias-tooltip-bg, #2b2f36); color: var(--dsw-static-neutral-bluish-00, #eef1f5);
+  font-size: 13px; line-height: 20px; pointer-events: none; animation: tooltip-in 150ms var(--ds-ease-in-out, ease-in-out); }
+.tipRow { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; }
+.tipLabel { opacity: 0.7; }
+.tipValue { overflow-wrap: anywhere; }
+@keyframes tooltip-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .tipBubble { animation: none; } }
+
+/* Parked voice is the one resting state that lasts, so it stands out with a
+ * colour animation: the text keeps its seat and its size while its colour
+ * breathes between the quiet label tone and the send accent. The brief
+ * "Resuming..." and "Connecting..." labels share the seat but not the motion. */
+.standbyParked {
+  animation: voice-standby-breathe 2400ms ease-in-out infinite;
+}
+
+@keyframes voice-standby-breathe {
+  0%, 100% { color: var(--dsw-alias-label-secondary, #9aa4b2); }
+  50% { color: var(--dsw-alias-button-info-fill, #4176e6); }
+}
+
+/* Where the browser can clip a background to the glyphs, the parked label reads
+ * as a live sweep of colour across the words instead of a flat pulse. Both
+ * colours come from theme tokens, so light and dark keep their own accent.
+ *
+ * The sweep must not restart visibly. The gradient covers two identical halves —
+ * quiet, accent, quiet, accent, quiet — and the background is twice the label
+ * wide, so the window that shows the first half looks exactly like the window
+ * that shows the second. Sliding from one to the other therefore lands on an
+ * identical image, and the loop closes without a jump. A linear timing function
+ * keeps the speed constant through that seam; easing would stall at the ends and
+ * make the restart noticeable again. */
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .standbyParked {
+    color: var(--dsw-alias-button-info-fill, #4176e6);
+    background-image: linear-gradient(90deg,
+      var(--dsw-alias-label-secondary, #9aa4b2) 0%,
+      var(--dsw-alias-button-info-fill, #4176e6) 25%,
+      var(--dsw-alias-label-secondary, #9aa4b2) 50%,
+      var(--dsw-alias-button-info-fill, #4176e6) 75%,
+      var(--dsw-alias-label-secondary, #9aa4b2) 100%);
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: voice-standby-sheen 3200ms linear infinite;
+  }
+
+  @keyframes voice-standby-sheen {
+    /* One cycle slides the window by exactly one gradient half, which is one
+       full period of the pattern, so the end state matches the start state. */
+    from { background-position: 0% 0; }
+    to { background-position: 100% 0; }
+  }
+}
+
+/* Reduced motion keeps the emphasis without the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .standbyParked {
+    animation: none;
+    color: var(--dsw-alias-button-info-fill, #4176e6);
+    background-image: none;
+    -webkit-text-fill-color: var(--dsw-alias-button-info-fill, #4176e6);
+  }
+}
+
+/* A failed session stays readable after the voice stops: the text is selectable
+ * and the copy action takes the whole message, not just the visible tail. */
+.failure {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 260px;
+  height: 24px;
+  padding-left: 8px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #c2544d) 14%, transparent);
+  color: var(--dsw-alias-state-error-primary, #c2544d);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.failureText {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  user-select: text;
+}
+
+.failure .action { color: inherit; width: 22px; height: 22px; }
+
+/* A transient notice: amber rather than red, faded out while its lifetime runs
+ * down, and never accompanied by a change to the orb or the buttons. */
+.notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 260px;
+  height: 24px;
+  padding-left: 8px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--dsw-alias-state-warn-primary, #f2a33c) 16%, transparent);
+  color: var(--dsw-alias-state-warn-primary, #f2a33c);
+  font-size: 11px;
+  line-height: 1;
+  animation: voice-notice-fade 4000ms linear forwards;
+}
+
+.noticeText {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  user-select: text;
+}
+
+.notice .action { color: inherit; width: 22px; height: 22px; }
+
+@keyframes voice-notice-fade {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
+}

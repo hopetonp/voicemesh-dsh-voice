@@ -1,3 +1,5 @@
+import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
+import { hostBaseUrl } from './host-address.ts'
 import { fetchViaVoiceHost } from './voice-credentials.ts'
 import { streamPipelineTts } from './pipeline-tts.ts'
 import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
@@ -20,8 +22,10 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { SessionFace } from '@deepseek-ai/dsh-api-session-controller/client'
 import { createPipelinePlayback } from '@voicemesh/composer/browser'
 import { createMicCapture, type MicHandle } from '@voicemesh/composer/browser'
-import { buildVoiceLoop, type VoiceLoopOptions, type VoiceLoop, type VoiceLoopHost, type SttStreamHandle, type TranscriptEcho, type VoiceAckDecision } from './loop.ts'
-import type { VoiceRuntimeStore } from './state.ts'
+import { createVoiceWakeChannel, shouldListen, type VoiceWakeChannel } from './wake-channel.ts'
+import { hostWebSocketUrl } from './host-address.ts'
+import { buildVoiceLoop, type VoiceLoopOptions, type VoiceLoop, type VoiceLoopHost, type VoiceProgressUpdate, type SttStreamHandle, type TranscriptEcho, type VoiceAckDecision } from './loop.ts'
+import type { VoicePhase, VoiceRuntimeStore } from './state.ts'
 import { pipelineModel, type VoiceConfig } from './config.ts'
 
 import { spokenResponseInstructions } from '@dsh-voice/harness-policy'
@@ -53,6 +57,13 @@ export function assistantText(event: { type: string; data?: AssistantMessageEven
     .join(' ')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+/** Whether an assistant message's visible text is followed by work in the same recorded step. */
+function continuesWithToolCall(event: { type: string; data?: AssistantMessageEventData }): boolean {
+  const content = event.data?.message.content
+  return event.type === 'assistant/message' && Array.isArray(content)
+    && content.some(block => (block as { type?: string }).type === 'tool-call')
 }
 
 /**
@@ -98,6 +109,14 @@ export interface VoiceDeps {
   getTtsEngine(): string
   /** The full persisted voice config (for the loop's live reads). */
   getConfig(): VoiceConfig
+  /**
+   * Activate voice exactly as the microphone button does. The wake phrase is a second way to press
+   * that button and nothing more — the app owns what activation means (which session, whether one
+   * is created), so this delegates rather than reimplementing any of it.
+   */
+  onWakePhrase?(): void | Promise<void>
+  /** Publish a wake setup failure without changing the conversation lifecycle. */
+  onWakeFailure?(message: string): void
 }
 
 /** A result of the STT connectivity probe. */
@@ -125,7 +144,13 @@ export interface ConversationalModels {
   ok: boolean
   /** Model ids the endpoint advertises (unsorted; may include duplicates). */
   models: string[]
-  providers?: { id: string; name: string; models: { id: string; name: string }[] }[]
+  providers?: {
+    id: string
+    name: string
+    models: { id: string; name: string }[]
+    /** Why this registered route offers no usable model; absent when it offers at least one. */
+    reason?: string
+  }[]
   /** Human-readable outcome when it failed (HTTP status / error detail). */
   message?: string
   /** Whether the request was made at all (false = key/base URL missing). */
@@ -176,7 +201,6 @@ export function buildDshTransport(
     })
   }
 
-  let cueSpeechState: 'speaking' | 'paused' = 'speaking'
   let currentConversation: { sessionId: string; id: string; model: PipelineConversation } | undefined
   const synthesize = async (text: string, audio: (pcm: Uint8Array, rate: number) => void, signal: AbortSignal): Promise<void> => {
     const engine = deps.getTtsEngine()
@@ -219,7 +243,7 @@ export function buildDshTransport(
     ttsCut = false
     await playback.play(texts, onStart, signal, false, async (caption, captionId) => {
       if (!sessionId || !deps.getConfig().transcriptHistory) return
-      const connection = ctx.get('connection')
+      const connection = ctx.get('connection') as ConnectionHandle | undefined
       if (connection === undefined) throw new Error('Voice connection unavailable')
       const result = await connection.rpc.call('/voice-pipeline', 'exchange', {
         sessionId, user: '', assistant: caption.text,
@@ -238,9 +262,10 @@ export function buildDshTransport(
         endConversationEnabled: () => deps.getConfig().endConversationEnabled,
         toolRounds: () => deps.getConfig().pipelineToolRounds,
         responseDetail: () => deps.getConfig().responseDetail,
+        progressMode: () => deps.getConfig().progressMode,
         request: (body, requestSignal) => {
           const c = deps.getConfig()
-          return fetchConversational(`${conversationalRoute(c)}/chat/completions`, {
+          return fetchConversational(`${conversationalEndpoint(c)}/chat/completions`, {
             method: 'POST', signal: requestSignal,
             headers: {
               'Content-Type': 'application/json',
@@ -257,7 +282,7 @@ export function buildDshTransport(
             if (typeof args !== 'object' || args === null || Object.keys(args).length !== 0) throw new Error('Read-back takes no arguments')
             return { text: await host.readBackLastOutput?.(sessionId) ?? '' }
           }
-          const connection = ctx.get('connection')
+          const connection = ctx.get('connection') as ConnectionHandle | undefined
           if (connection === undefined) throw new Error('Voice connection unavailable')
           const result = await connection.rpc.call('/voice-pipeline', 'tool', { sessionId, conversationId: id, callId, name, args }, requestSignal)
           if (!result.ok) throw new Error(typeof result.error === 'string' ? result.error : result.error.message)
@@ -283,9 +308,9 @@ export function buildDshTransport(
       // a WS instead (Flutter parity). The host forwards each binary PCM16 frame
       // to Deepgram Flux and streams interim `{type:'partial'|'transcript',
       // text, ended, last}` NDJSON lines back, so the transcript forms live.
-      const proto = location.protocol === 'https:' ? 'wss' : 'ws'
+      const proto = hostBaseUrl().protocol === 'https:' ? 'wss' : 'ws'
       const engine = deps.getSttEngine()
-      const url = `${proto}://${location.host}${deps.sttWsRoute}?session=${encodeURIComponent(sessionId)}&engine=${encodeURIComponent(engine)}&model=${encodeURIComponent(pipelineModel(deps.getConfig(), 'stt'))}`
+      const url = `${proto}://${hostBaseUrl().host}${deps.sttWsRoute}?session=${encodeURIComponent(sessionId)}&engine=${encodeURIComponent(engine)}&model=${encodeURIComponent(pipelineModel(deps.getConfig(), 'stt'))}`
       const ws = new WebSocket(url)
       let finalizing = false
       let buffered: Uint8Array[] = []
@@ -405,39 +430,37 @@ export function buildDshTransport(
     },
 
     resetConversation(): void { host.cancelPreparation?.(); currentConversation = undefined },
-    prepareConversation(text, sessionId, speechState): void {
-      if (speechState !== cueSpeechState) { playback.stopCue(); cueSpeechState = speechState ?? 'speaking' }
-      conversationFor(sessionId).prepare(text, (cue, started) => playback.cue(cue, undefined, started), speechState)
+    prepareConversation(text, sessionId, speechState, cueStarted): void {
+      console.debug(`[voice-cue] trigger ${speechState ?? 'speaking'} ${text.trim().length} chars`)
+      // No stopCue on a flip: interim text drives the state, and stopping here silenced the cue
+      // that the previous partial had already earned. Teardown still stops it.
+      conversationFor(sessionId).prepare(text, (cue, started) => playback.cue(cue, undefined, () => {
+        cueStarted?.(cue)
+        started()
+      }), speechState)
     },
-    finishPreparation(): void { currentConversation?.model.finishPreparation(); playback.stopCue() },
-    cancelPreparation(): void { currentConversation?.model.cancelPreparation(); playback.stopCue() },
+    finishPreparation(): void { console.debug('[voice-cue] finalize'); currentConversation?.model.finishPreparation(); playback.stopCue() },
+    cancelPreparation(): void { console.debug('[voice-cue] cancel'); currentConversation?.model.cancelPreparation(); playback.stopCue() },
     async conversation(text, sessionId, kind, emit, signal, requestEnd): Promise<string> {
       host.finishPreparation?.()
-      return conversationFor(sessionId).run(text, kind === 'application-result' ? 'coding-result' : kind, emit, signal, requestEnd)
+      return conversationFor(sessionId).run(text, kind === 'application-progress' ? 'coding-progress' : kind === 'application-result' ? 'coding-result' : kind, emit, signal, requestEnd)
     },
     ttsStream: (texts, onStart, signal, sessionId) => playTexts(texts, onStart, signal, true, sessionId),
 
     async recordExchange(sessionId: string, user: string, assistant: string): Promise<void> {
       if (!deps.getConfig().transcriptHistory) return
-      const connection = ctx.get('connection')
+      const connection = ctx.get('connection') as ConnectionHandle | undefined
       if (connection === undefined) throw new Error('Voice connection unavailable')
       const result = await connection.rpc.call('/voice-pipeline', 'exchange', { sessionId, user, assistant })
       if (!result.ok) throw new Error('Voice transcript could not be saved')
     },
 
     async openTranscriptEcho(sessionId: string): Promise<TranscriptEcho | null> {
-      // Begin a submission echo now (empty text), so the interim transcript
-      // paints into the message history as the user speaks. The echo carries
-      // the requestId the eventual prompt must reuse; updateSubmissionText
-      // mutates the bubble's text live, and commit() sends the identified
-      // prompt (retiring the echo once the durable user/message is visible).
       const session = sessionFor(sessionId)
       if (session === undefined) return null
-      const handle = session.beginSubmission({ text: '', mode: 'queue', images: [] })
+      const handle = session.beginSubmission({ text: '', mode: 'queue', attachments: [] })
       return {
-        update(text: string): void {
-          session.updateSubmissionText(handle.requestId, text)
-        },
+        update(text: string): void { session.updateSubmissionText(handle.requestId, text) },
         async commit(text: string): Promise<void> {
           session.updateSubmissionText(handle.requestId, text)
           const result = await session.prompt([{ type: 'text', text }], 'queue', undefined, handle.requestId)
@@ -447,9 +470,7 @@ export function buildDshTransport(
             throw new Error(msg)
           }
         },
-        abandon(): void {
-          handle.abandon()
-        },
+        abandon(): void { handle.abandon() },
       }
     },
 
@@ -462,7 +483,7 @@ export function buildDshTransport(
       // `user/message` (with this requestId) becomes visible — so the user's
       // message appears the moment they finish speaking, not after the agent
       // has produced its reply.
-      const handle = session.beginSubmission({ text, mode, images: [] })
+      const handle = session.beginSubmission({ text, mode, attachments: [] })
       const result = await session.prompt([{ type: 'text', text }], mode, undefined, handle.requestId)
       if (!result.ok) {
         handle.abandon()
@@ -471,28 +492,119 @@ export function buildDshTransport(
       }
     },
 
-    onReply(sessionId: string, handler: (text: string) => void, onCancelled?: () => void): () => void {
+    onReply(sessionId: string, handler: (text: string) => void, onCancelled?: () => void,
+      onProgress?: (update: VoiceProgressUpdate) => void): () => void {
       const source = ctx.sessions.binding(sessionId as SessionId)?.eventSource
       if (source === undefined) return () => {}
       let lastSeq = -1
       let primed = false
+      let openTurn: number | undefined
       const pending = new Map<number, string>()
+      const voiceRequests = new Set<string>()
+      const steeredRequests = new Map<string, string>()
+      const turnRequests = new Map<number, Set<string>>()
+      const active = new Map<string, {
+        turn: number
+        revision: number
+        awaiting?: string
+        todos?: readonly {
+          content: string
+          status: string
+        }[]
+        latest: number
+      }>()
+      const requestId = (data: unknown): string | undefined => typeof data === 'object' && data !== null
+        && 'requestId' in data && typeof data.requestId === 'string' ? data.requestId : undefined
+      const sourceRequest = (data: unknown): string | undefined => {
+        if (typeof data !== 'object' || data === null || !('source' in data)) return undefined
+        const source = data.source
+        return typeof source === 'object' && source !== null && 'kind' in source && source.kind === 'user'
+          && 'rpcId' in source && typeof source.rpcId === 'string' ? source.rpcId : undefined
+      }
       const scan = (): void => {
         for (const entry of source.getSnapshot().entries) {
           if (entry.type !== 'event' || entry.event.seq <= lastSeq) continue
-          const event = entry.event
+          const event = entry.event as { seq: number; type: string; data: unknown }
           lastSeq = event.seq
-          if (event.type === 'assistant/message') {
-            pending.set(event.data.turn, assistantText(event))
-          } else if (event.type === 'turn/end') {
-            const text = pending.get(event.data.turn)
-            pending.delete(event.data.turn)
-            if (!primed) continue
-            if (event.data.reason.kind === 'completed') {
-              if (text) handler(text)
-            } else if (event.data.reason.kind === 'aborted' || event.data.reason.kind === 'interrupted') {
-              onCancelled?.()
+          if (event.type === 'voice/sts/event' && typeof event.data === 'object' && event.data !== null && 'event' in event.data) {
+            const value = event.data.event
+            if (typeof value === 'object' && value !== null && 'type' in value && typeof value.type === 'string') {
+              if (value.type === 'coding-task.intent') {
+                const id = requestId(value)
+                if (id !== undefined) voiceRequests.add(id)
+              } else if (value.type === 'coding-task.steer-requested' && 'parentRequestId' in value
+                && typeof value.parentRequestId === 'string' && 'requestId' in value && typeof value.requestId === 'string') {
+                const state = active.get(value.parentRequestId)
+                if (state !== undefined) {
+                  state.revision++
+                  state.awaiting = value.requestId
+                  state.latest = -1
+                  steeredRequests.set(value.requestId, value.parentRequestId)
+                }
+              } else if (value.type === 'coding-task.stop-requested') {
+                const id = requestId(value)
+                const state = id === undefined ? undefined : active.get(id)
+                if (state !== undefined) { state.revision++; state.awaiting = '__stopped__'; state.latest = -1 }
+              }
             }
+          } else if (event.type === 'turn/start' && typeof event.data === 'object' && event.data !== null
+            && 'turn' in event.data && typeof event.data.turn === 'number') openTurn = event.data.turn
+          else if (event.type === 'user/message' && openTurn !== undefined) {
+            const sourceId = sourceRequest(event.data)
+            const id = sourceId === undefined ? undefined : steeredRequests.get(sourceId) ?? sourceId
+            if (id !== undefined && voiceRequests.has(id)) {
+              const requests = turnRequests.get(openTurn) ?? new Set<string>()
+              requests.add(id)
+              turnRequests.set(openTurn, requests)
+              const state = active.get(id)
+              if (state !== undefined && state.awaiting === sourceId) delete state.awaiting
+              else active.set(id, { turn: openTurn, revision: 0, latest: -1 })
+            } else if (active.size > 0) {
+              const requests = turnRequests.get(openTurn) ?? new Set<string>()
+              requests.add('__other__')
+              turnRequests.set(openTurn, requests)
+            }
+          } else if (event.type === 'todo/write' && openTurn !== undefined && typeof event.data === 'object' && event.data !== null
+            && 'todos' in event.data && Array.isArray(event.data.todos)) {
+            const todos = event.data.todos.filter((item): item is { content: string; status: string } => typeof item === 'object' && item !== null
+              && 'content' in item && typeof item.content === 'string' && 'status' in item && typeof item.status === 'string')
+            for (const [id, state] of active) {
+              if (state.turn !== openTurn || state.awaiting !== undefined) continue
+              const previous = state.todos
+              state.todos = todos
+              if (previous === undefined) continue
+              const prior = new Map(previous.map(item => [item.content, item.status]))
+              const completed = todos.filter(item => item.status === 'completed' && (prior.get(item.content) === 'pending' || prior.get(item.content) === 'in_progress')).map(item => item.content)
+              if (completed.length === 0 || (turnRequests.get(openTurn)?.size ?? 0) !== 1) continue
+              state.latest = event.seq
+              if (primed && deps.getConfig().progressMode === 'milestones') {
+                const next = todos.filter(item => item.status === 'in_progress').map(item => item.content)
+                onProgress?.({ text: `Coding-agent update: completed ${completed.join('; ')}.${next.length === 0 ? '' : ` Current work: ${next.join('; ')}.`}`,
+                  current: () => active.get(id)?.latest === event.seq && active.get(id)?.awaiting === undefined })
+              }
+            }
+          } else if (event.type === 'assistant/message') {
+            const data = event.data as { turn: number }
+            const text = assistantText(event as { type: string; data?: AssistantMessageEventData })
+            pending.set(data.turn, text)
+            for (const [id, state] of active) if (state.turn === data.turn && state.awaiting === undefined
+              && (turnRequests.get(data.turn)?.size ?? 0) === 1 && text !== '' && continuesWithToolCall(event as { type: string; data?: AssistantMessageEventData })) {
+              state.latest = event.seq
+              if (primed && deps.getConfig().progressMode === 'milestones') {
+                onProgress?.({ text: `Coding-agent update: ${text}`,
+                  current: () => active.get(id)?.latest === event.seq && active.get(id)?.awaiting === undefined })
+              }
+            }
+          } else if (event.type === 'turn/end') {
+            const data = event.data as { turn: number; reason: { kind: string } }
+            const text = pending.get(data.turn)
+            pending.delete(data.turn)
+            for (const [id, state] of active) if (state.turn === data.turn) active.delete(id)
+            turnRequests.delete(data.turn)
+            if (openTurn === data.turn) openTurn = undefined
+            if (!primed) continue
+            if (data.reason.kind === 'completed') { if (text) handler(text) }
+            else if (data.reason.kind === 'aborted' || data.reason.kind === 'interrupted') onCancelled?.()
           }
         }
         primed = true
@@ -590,7 +702,9 @@ export function buildDshTransport(
     probeConversational: () => probeConversational(deps.getConfig()),
     listConversationalModels: async () => {
       const c = deps.getConfig()
-      const catalog = await listConversationalModels(c.conversationalProvider)
+      // `custom` is the stored marker for the explicit endpoint, not a provider the
+      // host knows; the catalog request names no provider at all.
+      const catalog = await listConversationalModels(c.conversationalProvider === 'custom' ? '' : c.conversationalProvider)
       if (c.conversationalProvider !== 'custom' || !c.conversationalBaseUrl.trim() || !c.conversationalCredential) return catalog
       const custom = await listConversationalModels(conversationalRoute(c))
       return { ...custom, providers: catalog.providers ?? [] }
@@ -608,6 +722,10 @@ export interface VoiceController {
   start(sessionId: string): Promise<void>
   /** Stop capture and disarm the loop (back to idle). */
   stop(): void
+  /** Park now (manual pause): release capture, the streaming recognizer, and any
+   * speech still playing, while staying bound to the session. The next `start`
+   * resumes it with the elapsed clock preserved. */
+  standby(): void
   /** Probe the selected STT provider’s connectivity/auth through the host (no mic, no session). */
   readonly probe: () => Promise<SttHealth>
   /** Probe the configured conversational model (reachability + key + model). */
@@ -621,6 +739,8 @@ export interface VoiceController {
    * falling back to the in-memory last reply, and rewrites it when the
    * conversational reply is enabled before speaking. */
   readonly readBackOutput: (sessionId: string) => Promise<void>
+  /** Re-evaluate wake listening after its settings change. */
+  refreshWake(): void
 }
 
 /**
@@ -647,6 +767,7 @@ export function attachVoiceLoop(
         readBack: true,
         vadSilenceSec: c.vadSilenceSec,
         voiceStandbySec: c.voiceStandbySec,
+        speakerMuted: c.speakerMuted ?? false,
         statusSounds: c.statusSounds,
         backchannelEnabled: c.backchannelEnabled,
         conversationalEnabled: c.conversationalEnabled,
@@ -671,9 +792,105 @@ export function attachVoiceLoop(
   }
 
 
+  // Wake listening keeps its socket and keyword spotter warm through voice activity, but releases
+  // its separate capture while the conversation owns the microphone.
+  let boundSession: string | undefined
+  let wake: VoiceWakeChannel | undefined
+  let wakeIdentity: string | undefined
+  let wakeAbort: AbortController | undefined
+  let wakeSetup: Promise<void> = Promise.resolve()
+  let wakeReconnectAttempted = false
+  const clearWake = (): void => {
+    wake = undefined
+    wakeIdentity = undefined
+    wakeAbort?.abort()
+    wakeAbort = undefined
+  }
+  /**
+   * Follow the voice's activity: listen whenever it is not active, and never while it is.
+   *
+   * Not "only while parked" — parked is one inactive state among several. Idle before the first
+   * activation and after a stop are both cases where the voice is not active, and the user expects
+   * the phrase to work in all of them.
+   */
+  let voiceActive = false
+  /** Active phases own the conversation microphone, so wake must release its separate capture. */
+  const wakeActiveForPhase = (phase: VoicePhase): boolean => phase === 'connecting' || phase === 'listening'
+    || phase === 'preparing' || phase === 'transcribing' || phase === 'speaking'
+  const setWakeListening = (listening: boolean): void => {
+    const channel = wake
+    const identity = wakeIdentity
+    if (channel === undefined || identity === undefined) return
+    void channel.setListening(listening).catch(error => {
+      if (wake === channel && wakeIdentity === identity) {
+        clearWake()
+        deps.onWakeFailure?.(error instanceof Error ? error.message : String(error))
+      }
+    })
+  }
+  const setupWake = (): void => {
+    const selected = deps.getConfig()
+    if (!shouldListen(selected, false)) { clearWake(); return }
+    const identity = `${selected.wakeModelId}\u0000${selected.wakePhrase.trim()}`
+    if (wake !== undefined && wakeIdentity === identity) {
+      setWakeListening(!voiceActive)
+      return
+    }
+    clearWake()
+    const abort = new AbortController()
+    const channel = createVoiceWakeChannel({
+      url: hostWebSocketUrl(`/voice/wake?modelId=${encodeURIComponent(selected.wakeModelId)}`),
+      // The phrase is a second way to press the microphone button: hand it to the app, which owns
+      // activation. Without that hook, fall back to resuming the session this was parked on.
+      onResume: () => {
+        if (deps.onWakePhrase !== undefined) { void deps.onWakePhrase(); return }
+        if (boundSession !== undefined) void controller.start(boundSession)
+      },
+      onFailure: message => { deps.onWakeFailure?.(message) },
+      // Re-checked on each captured chunk: switching wake off while the voice is inactive runs no
+      // lifecycle path, and this is what stops the microphone being held open in that case.
+      stillWanted: () => shouldListen(deps.getConfig(), voiceActive),
+      signal: abort.signal,
+      onClosed: () => {
+        if (wake !== channel) return
+        clearWake()
+        if (voiceActive || wakeReconnectAttempted || !shouldListen(deps.getConfig(), false)) return
+        wakeReconnectAttempted = true
+        setupWake()
+      },
+    })
+    wake = channel
+    wakeIdentity = identity
+    wakeAbort = abort
+    const setup = async (): Promise<void> => {
+      if (wake !== channel || wakeIdentity !== identity) return
+      const connection = ctx.get('connection')
+      if (connection === undefined) throw new Error('Voice connection unavailable')
+      const result = await connection.rpc.call('/voice-local', 'wake-keywords', {
+        modelId: selected.wakeModelId,
+        phrases: [selected.wakePhrase.trim()],
+      })
+      if (!result.ok) throw new Error(result.error.message)
+      if (wake !== channel || wakeIdentity !== identity || !shouldListen(deps.getConfig(), false)) return
+      await channel.setup()
+      if (wake === channel && wakeIdentity === identity) await channel.setListening(!voiceActive)
+    }
+    wakeSetup = wakeSetup.then(setup, setup).catch((error: unknown) => {
+      if (wake !== channel || wakeIdentity !== identity) return
+      clearWake()
+      deps.onWakeFailure?.(error instanceof Error ? error.message : String(error))
+    })
+  }
+
   const controller: VoiceController = {
     loop,
     mic,
+    standby(): void {
+      // The loop owns the parked/resumed activation, so a manual pause is the
+      // same transition the inactivity deadline performs: release capture and
+      // recognizer audio, keep the session bound, publish standby.
+      loop.standby()
+    },
     probe,
     probeConversational,
     listConversationalModels,
@@ -708,9 +925,12 @@ export function attachVoiceLoop(
       else await host.tts(toSpeak, undefined, sessionId)
     },
     async start(sessionId: string): Promise<void> {
+      boundSession = sessionId
       await loop.start(sessionId)
     },
     stop(): void {
+      // Voice off is an inactive state, so the listener stays armed — that is how the phrase can
+      // bring the conversation back after the user stopped it.
       // Flutter parity: `VoiceController.stop()` awaits `synthesizer.stop()`,
       // which actively silences audio that is mid-playback — so turning voice
       // off cuts a reply the agent is still speaking, rather than letting it
@@ -719,14 +939,47 @@ export function attachVoiceLoop(
       if (host.stopTts !== undefined) void host.stopTts().catch(() => {})
       loop.stop()
     },
+    refreshWake(): void { wakeReconnectAttempted = false; setupWake() },
   }
   host.endConversation = () => controller.stop()
+  // One shared runtime phase stream covers manual controls, automatic standby, and both adapters.
+  // The listener is therefore rearmed after every inactive transition instead of only after the
+  // Pipeline controller happens to call one of its local methods.
+  let wakePhase = store.getSnapshot().phase
+  ctx.effect(() => {
+    const unsubscribe = store.subscribe(() => {
+      const phase = store.getSnapshot().phase
+      if (phase === wakePhase) return
+      wakePhase = phase
+      voiceActive = wakeActiveForPhase(phase)
+      if (voiceActive) wakeReconnectAttempted = false
+      if (!voiceActive && wake === undefined) { setupWake(); return }
+      setWakeListening(!voiceActive)
+    })
+    return () => { unsubscribe(); clearWake() }
+  }, 'voice-client: wake lifecycle')
+  // The voice starts inactive, so the listener starts armed before the first activation.
+  voiceActive = wakeActiveForPhase(store.getSnapshot().phase)
+  setupWake()
+
   return controller
 }
 
 /** Resolve either an installed provider ID or the explicit custom endpoint. */
 function conversationalRoute(c: VoiceConfig): string {
   return c.conversationalProvider === 'custom' ? c.conversationalBaseUrl.trim().replace(/\/+$/, '') : c.conversationalProvider
+}
+
+/** Resolve the conversational destination for a request that cannot be sent without one.
+ * An unset custom endpoint and an unselected provider both leave no route, and the
+ * host cannot infer either: it would receive a bare request and answer 502.
+ * @param c - persisted voice preferences.
+ * @returns installed provider ID or the explicit endpoint.
+ */
+function conversationalEndpoint(c: VoiceConfig): string {
+  const route = conversationalRoute(c)
+  if (route === '') throw new Error('Conversational provider endpoint is not configured')
+  return route
 }
 
 /** Resolve the requested reasoning effort from the thinking preference. */
@@ -741,7 +994,7 @@ export async function fetchConversational(url: string, init: RequestInit, fetchI
 
 /** Rewrite `text` through the configured conversational model (OpenAI-compatible chat). */
 export async function conversationalRewrite(c: VoiceConfig, text: string, _terse = false, sessionId?: string): Promise<string> {
-  const base = conversationalRoute(c)
+  const base = conversationalEndpoint(c)
   const system = `You are a voice assistant summarizing a saved coding report in the user's language. ${spokenResponseInstructions(c.responseDetail)}`
   const res = await fetchConversational(`${base}/chat/completions`, {
     method: 'POST',
@@ -837,7 +1090,7 @@ export async function probeConversational(
 }
 
 /** List installed host providers and models eligible for conversational speech.
- * @param baseUrl - selected provider ID; empty while choosing a provider.
+ * @param baseUrl - installed provider ID or explicit endpoint URL; empty for the whole catalog.
  * @param fetchImpl - HTTP transport.
  * @param timeoutMs - catalog request deadline.
  */
@@ -988,7 +1241,7 @@ export function parseAckDecision(content: string): VoiceAckDecision {
 
 /** Decide how to handle a spoken utterance via the configured conversational model. */
 export async function ackRouterDecide(c: VoiceConfig, text: string, sessionId?: string): Promise<VoiceAckDecision> {
-  const base = conversationalRoute(c)
+  const base = conversationalEndpoint(c)
   const res = await fetchConversational(`${base}/chat/completions`, {
     method: 'POST',
     headers: {

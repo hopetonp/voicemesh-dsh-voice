@@ -12,11 +12,27 @@
 import { defineStore, type BakedActions } from '@deepseek-ai/dsh-client-store'
 import type { StoreHandle } from '@deepseek-ai/dsh-client-store'
 
+/** Locales supported by the bundled keyword-spotting packs. */
+export type WakeLocale = 'en' | 'zh'
+
+/** Resolve the keyword-spotting locale from the app-selected locale id. */
+export function wakeLocale(locale: string): WakeLocale {
+  return locale.toLowerCase().startsWith('zh') ? 'zh' : 'en'
+}
+
+/** The phrase supplied until a user edits the wake setting. */
+export function wakeDefaultPhrase(locale: WakeLocale): string {
+  return locale === 'zh' ? '你好深度求索' : 'Hey DeepSeek'
+}
+
+/** Pack selected automatically for the original English wake default. */
+export const DEFAULT_ENGLISH_WAKE_MODEL = 'sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01'
+
 /** What the user configures. */
 export interface VoiceConfig {
   /** Provider/mode-scoped favorites selected by the user. */
   voiceFavorites: string[]
-  /** Select the existing pipeline or native Grok speech-to-speech. */
+  /** Select the voice pipeline or a native realtime speech provider. */
   voiceMode: 'pipeline' | 'sts'
   /** Selected native speech provider; credentials are retained independently. */
   stsProvider: 'xai' | 'gemini' | 'openai' | 'openai-live'
@@ -37,8 +53,6 @@ export interface VoiceConfig {
   statusSounds: boolean
   /** Allow the realtime model to end voice chat on farewell intent. */
   endConversationEnabled: boolean
-  /** Placement of voice controls; unsupported panels use the orb. */
-  controlLayout: 'orb' | 'panel'
   /** Maximum buffered browser STS wire bytes. */
   stsMaxQueuedBytes: number
   /** Maximum seconds awaiting playback. */
@@ -87,15 +101,17 @@ export interface VoiceConfig {
   handsFree: boolean
   /** Mute the mic input without stopping the loop. */
   muted: boolean
+  /** Whether the speaker is muted (output silenced without stopping the loop). */
+  speakerMuted: boolean
   /** Read the agent's reply back through TTS. */
   readBack: boolean
-  /** STT engine id (the factory's key; Deepgram Flux is first). */
+  /** Explicitly selected STT engine id; empty until setup chooses one. */
   sttEngine: string
   /** Installed local recognition model ID. */
   localSttModel: string
   /** Installed local synthesis model and speaker ID. */
   localTtsVoice: string
-  /** TTS engine id (the factory's key; Deepgram Aura) is first. */
+  /** Explicitly selected TTS engine id; empty until setup chooses one. */
   ttsEngine: string
   /** Deepgram voice model ID; Flux streams, while Aura uses REST synthesis. */
   deepgramVoiceModel: string
@@ -103,6 +119,8 @@ export interface VoiceConfig {
   grokVoice: string
   /** Default detail for conversational speech in both voice modes. */
   responseDetail: 'concise' | 'detailed'
+  /** Whether automatic coding-task speech includes coding-agent todo milestones. */
+  progressMode: 'outcome' | 'milestones'
   /** Route the reply through a conversational LLM to make it natural to speak. */
   conversationalEnabled: boolean
   /** Legacy preference normalized to false; thinking is disabled by the host. */
@@ -130,11 +148,21 @@ export interface VoiceConfig {
   /** Seconds of idle before the cloud connection drops into standby. 0 = off. */
   voiceStandbySec: number
   /** Whether quiet acknowledgments ("mhmm") are emitted while the user talks. */
-  /** Display live audio levels in the message toolbar. */
-  audioVisualizer: boolean
   backchannelEnabled: boolean
   /** Backchannel gain 0..1 (kept under the user's voice). */
   backchannelVolume: number
+  /** Listen for a wake phrase while the voice is parked. Off by default. */
+  wakeEnabled: boolean
+  /** The phrase to listen for, as typed by the user. Empty means wake is not configured. */
+  wakePhrase: string
+  /** Locale that supplied the phrase, or empty after a user or legacy setting chose it. */
+  wakePhraseDefaultLocale: WakeLocale | ''
+  /** Installed keyword-spotting pack used for the wake phrase. */
+  wakeModelId: string
+  /** Locale that selected the wake pack, or empty after a user or legacy setting chose it. */
+  wakeModelDefaultLocale: WakeLocale | ''
+  /** Show the assistant-output cloud above the composer during a voice session. */
+  assistantOrbEnabled: boolean
 }
 
 /** The raw (draft-first) write set declared to `defineStore`. A type alias (not
@@ -152,7 +180,6 @@ export type VoiceConfigActions = {
   setGeminiStsModel(draft: VoiceConfig, model: string): void
   setGeminiStsVoice(draft: VoiceConfig, voice: string): void
   setEndConversationEnabled(draft: VoiceConfig, on: boolean): void
-  setControlLayout(draft: VoiceConfig, layout: 'orb' | 'panel'): void
   setVoiceMode(draft: VoiceConfig, mode: 'pipeline' | 'sts'): void
   setDeepgramCredential(draft: VoiceConfig, configured: boolean): void
   setFishCredential(draft: VoiceConfig, configured: boolean): void
@@ -172,12 +199,14 @@ export type VoiceConfigActions = {
   setGrokVoice(draft: VoiceConfig, voice: string): void
   setHandsFree(draft: VoiceConfig, on: boolean): void
   setMuted(draft: VoiceConfig, on: boolean): void
+  setSpeakerMuted(draft: VoiceConfig, on: boolean): void
   setLocalSttModel(draft: VoiceConfig, id: string): void
   setLocalTtsVoice(draft: VoiceConfig, id: string): void
   setSttEngine(draft: VoiceConfig, id: string): void
   setTtsEngine(draft: VoiceConfig, id: string): void
   setDeepgramVoiceModel(draft: VoiceConfig, voice: string): void
   setResponseDetail(draft: VoiceConfig, detail: 'concise' | 'detailed'): void
+  setProgressMode(draft: VoiceConfig, mode: 'outcome' | 'milestones'): void
   setConversationalSource(draft: VoiceConfig, source: 'harness' | 'custom'): void
   setConversationalProvider(draft: VoiceConfig, id: string): void
   setConversationalCustomProvider(draft: VoiceConfig, id: string): void
@@ -186,27 +215,53 @@ export type VoiceConfigActions = {
   setConversationalCredential(draft: VoiceConfig, configured: boolean): void
   setVadSilenceSec(draft: VoiceConfig, sec: number): void
   setVoiceStandbySec(draft: VoiceConfig, sec: number): void
-  setAudioVisualizer(draft: VoiceConfig, on: boolean): void
   setBackchannelEnabled(draft: VoiceConfig, on: boolean): void
+  /** Enable or disable wake-phrase listening while the voice is parked. */
+  setWakeEnabled(draft: VoiceConfig, on: boolean): void
+  /** Set the wake phrase, as typed by the user. */
+  setWakePhrase(draft: VoiceConfig, phrase: string): void
+  /** Apply the locale-owned phrase while it remains an automatic default. */
+  setWakeDefaultPhrase(draft: VoiceConfig, locale: WakeLocale): void
+  /** Select the installed keyword-spotting pack. */
+  setWakeModelId(draft: VoiceConfig, id: string): void
+  /** Record an automatically selected keyword-spotting pack for the app locale. */
+  setWakeDefaultModel(draft: VoiceConfig, id: string, locale: WakeLocale): void
   setBackchannelVolume(draft: VoiceConfig, vol: number): void
+  setAssistantOrbEnabled(draft: VoiceConfig, on: boolean): void
 }
 
 /** The baked (draft-stripped) write set the UI calls. */
 export type BakedVoiceConfigActions = BakedActions<VoiceConfig, VoiceConfigActions>
 
+/** Actions whose values mirror a host-owned credential status. */
+export type VoiceCredentialStatusActions = Pick<BakedVoiceConfigActions,
+  'setDeepgramCredential' | 'setFishCredential' | 'setXaiCredential' | 'setStsCredential'
+  | 'setGeminiStsCredential' | 'setOpenaiStsCredential' | 'setConversationalCredential'>
+
+/** Clear browser-cached status until the current host has reported each credential. */
+export function clearVoiceCredentialStatuses(actions: VoiceCredentialStatusActions): void {
+  actions.setDeepgramCredential(false)
+  actions.setFishCredential(false)
+  actions.setXaiCredential(false)
+  actions.setStsCredential(false)
+  actions.setGeminiStsCredential(false)
+  actions.setOpenaiStsCredential(false)
+  actions.setConversationalCredential(false)
+}
+
 /** Default configuration, mirroring the Flutter defaults. */
 export const DEFAULT_VOICE_CONFIG: VoiceConfig = {
   voiceFavorites: [],
-  stsProvider: 'xai',
+  stsProvider: 'openai-live',
   geminiStsCredential: '',
-  geminiStsModel: 'gemini-3.1-flash-live-preview',
+  geminiStsModel: 'gemini-3.8-live',
   geminiStsVoice: 'Kore',
   openaiStsCredential: '',
   openaiLiveModel: '',
   openaiLiveVoice: 'marin',
   openaiStsModel: 'gpt-realtime-2.1',
   openaiStsVoice: 'marin',
-  voiceMode: 'pipeline',
+  voiceMode: 'sts',
   stsMaxQueuedBytes: 2097152,
   stsMaxQueuedSeconds: 30,
   stsSchedulingLeadSeconds: 0.04,
@@ -217,7 +272,6 @@ export const DEFAULT_VOICE_CONFIG: VoiceConfig = {
   transcriptHistory: true,
   statusSounds: true,
   endConversationEnabled: false,
-  controlLayout: 'orb',
   stsCloseTimeoutMs: 5000,
   stsConnectTimeoutMs: 15000,
   deepgramCredential: '',
@@ -240,31 +294,43 @@ export const DEFAULT_VOICE_CONFIG: VoiceConfig = {
   stsThinking: false,
   handsFree: true,
   muted: false,
+  speakerMuted: false,
   readBack: true,
-  sttEngine: 'deepgram-flux',
+  sttEngine: '',
   localSttModel: '',
   localTtsVoice: '',
-  ttsEngine: 'deepgram',
+  ttsEngine: '',
   deepgramVoiceModel: 'flux-haley-en',
   grokVoice: 'eve',
   responseDetail: 'concise',
+  progressMode: 'outcome',
   conversationalEnabled: true,
   conversationalThinking: false,
   pipelineContextTurns: 8,
   pipelineToolRounds: 4,
-  conversationalProvider: 'deepseek-official',
+  conversationalProvider: '',
   conversationalCustomProvider: 'manual',
   conversationalModel: '',
-  conversationalHarnessProvider: 'deepseek-official',
+  conversationalHarnessProvider: '',
   conversationalHarnessModel: '',
   conversationalCustomModel: '',
   conversationalBaseUrl: '',
   conversationalCredential: '',
   vadSilenceSec: 1.1,
-  voiceStandbySec: 30,
-  audioVisualizer: false,
+  voiceStandbySec: 15,
   backchannelEnabled: false,
   backchannelVolume: 0.4,
+  wakeEnabled: false,
+  wakePhrase: wakeDefaultPhrase('en'),
+  wakePhraseDefaultLocale: 'en',
+  wakeModelId: '',
+  wakeModelDefaultLocale: 'en',
+  assistantOrbEnabled: true,
+}
+
+/** Older saved settings omit this preference; only an explicit off hides the orb. */
+export function assistantOrbEnabled(config: { readonly assistantOrbEnabled?: boolean }): boolean {
+  return config.assistantOrbEnabled !== false
 }
 
 /** The engines the web can actually drive today: Deepgram (Flux STT / Aura TTS)
@@ -272,6 +338,7 @@ export const DEFAULT_VOICE_CONFIG: VoiceConfig = {
  * registry slots as their providers are ported. */
 export const STT_ENGINES: readonly { id: string; label: string }[] = [
   { id: 'vosk', label: 'Vosk (local)' },
+  { id: 'parakeet', label: 'Parakeet (local)' },
   { id: 'deepgram-flux', label: 'Deepgram' },
   { id: 'grok', label: 'Grok (xAI)' },
   { id: 'openai', label: 'OpenAI' },
@@ -305,7 +372,6 @@ export function createVoiceConfigHandle(): VoiceConfigHandle {
     persist: 'dsh-voice.config',
     actions: {
       setEndConversationEnabled: (d, on: boolean) => { d.endConversationEnabled = on },
-      setControlLayout: (d, layout: 'orb' | 'panel') => { d.controlLayout = layout },
       setVoiceMode: (d, mode: 'pipeline' | 'sts') => { d.voiceMode = mode },
       setDeepgramCredential: (d, configured) => { d.deepgramCredential = configured ? 'deepgram' : '' },
       setFishCredential: (d, configured) => { d.fishCredential = configured ? 'fish' : '' },
@@ -335,12 +401,14 @@ export function createVoiceConfigHandle(): VoiceConfigHandle {
       setGrokVoice: (d, voice: string) => { d.grokVoice = voice },
       setHandsFree: (d, on: boolean) => { d.handsFree = on },
       setMuted: (d, on: boolean) => { d.muted = on },
+      setSpeakerMuted: (d, on: boolean) => { d.speakerMuted = on },
       setLocalSttModel: (d, id: string) => { d.localSttModel = id },
       setLocalTtsVoice: (d, id: string) => { d.localTtsVoice = id },
       setSttEngine: (d, id: string) => { d.sttEngine = id },
       setTtsEngine: (d, id: string) => { d.ttsEngine = id },
       setDeepgramVoiceModel: (d, voice: string) => { d.deepgramVoiceModel = voice },
       setResponseDetail: (d, detail: 'concise' | 'detailed') => { d.responseDetail = detail },
+      setProgressMode: (d, mode: 'outcome' | 'milestones') => { d.progressMode = mode },
       setConversationalSource: (d, source: 'harness' | 'custom') => {
         const custom = d.conversationalProvider === 'custom'
         if (custom === (source === 'custom')) return
@@ -362,9 +430,14 @@ export function createVoiceConfigHandle(): VoiceConfigHandle {
       setConversationalCredential: (d, configured) => { d.conversationalCredential = configured ? 'conversational' : '' },
       setVadSilenceSec: (d, sec: number) => { d.vadSilenceSec = sec },
       setVoiceStandbySec: (d, sec: number) => { d.voiceStandbySec = sec },
-      setAudioVisualizer: (d, on: boolean) => { d.audioVisualizer = on },
       setBackchannelEnabled: (d, on: boolean) => { d.backchannelEnabled = on },
       setBackchannelVolume: (d, vol: number) => { d.backchannelVolume = vol },
+      setWakeEnabled: (d, on: boolean) => { d.wakeEnabled = on },
+      setWakePhrase: (d, phrase: string) => { d.wakePhrase = phrase; d.wakePhraseDefaultLocale = '' },
+      setWakeDefaultPhrase: (d, locale) => { d.wakePhrase = wakeDefaultPhrase(locale); d.wakePhraseDefaultLocale = locale },
+      setWakeModelId: (d, id: string) => { d.wakeModelId = id; d.wakeModelDefaultLocale = '' },
+      setWakeDefaultModel: (d, id, locale) => { d.wakeModelId = id; d.wakeModelDefaultLocale = locale },
+      setAssistantOrbEnabled: (d, on: boolean) => { d.assistantOrbEnabled = on },
     },
   })
 }
@@ -378,11 +451,19 @@ export function normalizeVoiceConfig(partial: Partial<VoiceConfig> = {}): VoiceC
     if (key in DEFAULT_VOICE_CONFIG && v !== undefined) (out as unknown as Record<string, unknown>)[key] = v
   }
   out.responseDetail = partial.responseDetail === 'detailed' ? 'detailed' : 'concise'
+  out.progressMode = partial.progressMode === 'milestones' ? 'milestones' : 'outcome'
   out.statusSounds = true
   out.readBack = true
   out.transcriptHistory = true
   out.conversationalEnabled = true
   out.conversationalThinking = false
+  // v54 saved the shipped English defaults without source markers. Preserve every other legacy
+  // value as explicit, but let that exact pair follow the app locale like a fresh configuration.
+  const legacyEnglishDefault = partial.wakePhraseDefaultLocale === undefined && partial.wakePhrase === wakeDefaultPhrase('en')
+  if (partial.wakePhraseDefaultLocale !== 'en' && partial.wakePhraseDefaultLocale !== 'zh') out.wakePhraseDefaultLocale = legacyEnglishDefault ? 'en' : ''
+  if (partial.wakeModelDefaultLocale !== 'en' && partial.wakeModelDefaultLocale !== 'zh') {
+    out.wakeModelDefaultLocale = legacyEnglishDefault && partial.wakeModelId === DEFAULT_ENGLISH_WAKE_MODEL ? 'en' : ''
+  }
   if (out.deepgramCredential !== 'deepgram') out.deepgramCredential = ''
   if (out.fishCredential !== 'fish') out.fishCredential = ''
   if (out.xaiCredential !== 'xai') out.xaiCredential = ''
@@ -390,9 +471,9 @@ export function normalizeVoiceConfig(partial: Partial<VoiceConfig> = {}): VoiceC
   if (out.geminiStsCredential !== 'gemini-sts') out.geminiStsCredential = ''
   if (out.openaiStsCredential !== 'openai-sts') out.openaiStsCredential = ''
   if (out.conversationalCredential !== 'conversational') out.conversationalCredential = ''
-  if (out.geminiStsModel.replace(/^models\//, '').startsWith('gemini-2.5-')) {
-    out.geminiStsModel = DEFAULT_VOICE_CONFIG.geminiStsModel
-  }
+  // A saved model is kept exactly as chosen: the catalog offers every model the provider advertises
+  // for the live transport, so rewriting the selection here would only undo the user's choice.
+  out.geminiStsModel = out.geminiStsModel.replace(/^models\//, '')
   for (const value of [out.pipelineContextTurns, out.pipelineToolRounds]) {
     if (!Number.isSafeInteger(value) || value < 1) throw new Error('Pipeline conversation limits must be positive integers')
   }
@@ -413,6 +494,12 @@ export const CUSTOM_CONVERSATIONAL_ENDPOINTS = [
   { id: 'openrouter', label: 'OpenRouter', url: 'https://openrouter.ai/api/v1' },
 ] as const
 
+/** Whether an STT engine reads an installed local pack instead of a provider model. */
+export function isLocalSttEngine(engine: string): engine is 'vosk' | 'parakeet' { return engine === 'vosk' || engine === 'parakeet' }
+
+/** The installed pack engine a local STT selection reads; other engines never reach this. */
+export function localSttEngine(engine: string): 'vosk' | 'parakeet' { return engine === 'parakeet' ? 'parakeet' : 'vosk' }
+
 /** Resolve the selected pipeline model without consulting the Realtime settings.
  * @param config - persisted voice preferences.
  * @param kind - recognition or synthesis.
@@ -422,7 +509,9 @@ export function pipelineModel(config: VoiceConfig, kind: 'stt' | 'tts'): string 
   const engine = kind === 'stt' ? config.sttEngine : config.ttsEngine
   if (engine === 'gemini') return kind === 'stt' ? config.geminiSttModel : config.geminiTtsModel
   if (engine === 'openai') return kind === 'stt' ? config.openaiSttModel : config.openaiTtsModel
-  return engine === 'vosk' ? config.localSttModel : ''
+  // Every local engine sends its installed pack id as the model; naming one engine here left the
+  // others with an empty model, which the host rejects as "select an installed local voice model".
+  return isLocalSttEngine(engine) ? config.localSttModel : ''
 }
 
 /** Resolve the selected pipeline voice for synthesis, catalogs, and previews.

@@ -5,11 +5,13 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 interface VoiceAdapter {
   start(sessionId: SessionId): Promise<void>
   stop(): void | Promise<void>
+  /** Park the active mode now; its next activation resumes the same session. */
+  standby(): void
   readBackOutput(sessionId: SessionId): Promise<void>
 }
 
 /**
- * Route both modes through the same activation and resource-release sequence.
+ * Route both modes through the same activation, pause, and resource-release sequence.
  * @param select - adapter selected by the current voice settings.
  * @returns shared user commands; stop cancels an activation waiting for prior teardown.
  */
@@ -41,6 +43,8 @@ export function createVoiceControls(select: () => VoiceAdapter) {
   return {
     start: (sessionId: SessionId): Promise<void> => run(sessionId, false),
     readBackOutput: (sessionId: SessionId): Promise<void> => run(sessionId, true),
+    /** Park the active mode; a mode that never started has nothing to park. */
+    standby: (): void => { owner?.standby() },
     stop,
   }
 }

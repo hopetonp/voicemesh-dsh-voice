@@ -1,6 +1,5 @@
-/* Voice setup page (a settings.section). Every control is copied from the
- * harness's own settings recipes — no hand-painted styling — so the page reads
- * like the other settings sections:
+/* Voice setup page. Every control is copied from the Harness UI recipes so the
+ * page reads like the other configuration forms:
  *   - dropdowns  -> `Menu` primitive anchored to the capsule `.selector`
  *                   (EnterBehaviorRow / Conversation-display controls)
  *   - text fields-> full-width `bg-layer-3` ink on the `fields.tsx` geometry
@@ -202,6 +201,9 @@
 }
 .subsection:first-child {
   border-top: none;
+}
+.subsectionBody > .subsection {
+  padding-inline-start: 12px;
 }
 .subsectionHeader {
   width: 100%;

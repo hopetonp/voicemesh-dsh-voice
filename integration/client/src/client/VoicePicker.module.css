@@ -32,15 +32,31 @@
 .filters { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
 .filters label { display: flex; align-items: center; gap: 6px; }
 .list { overflow-y: auto; min-height: 120px; padding: 0 24px 12px; }
-.row { display: flex; align-items: center; gap: 12px; padding: 16px; margin-bottom: 10px;
+.row { box-sizing: border-box; display: flex; align-items: center; min-height: 68px; padding: 10px 12px; gap: 8px; margin-bottom: 10px;
   border: 1px solid var(--dsw-alias-border-l4); border-radius: 12px; }
-.avatar { width: 42px; height: 42px; border-radius: 50%; corner-shape: round; display: grid; place-items: center;
-  background: var(--dsw-alias-bg-layer-3); flex-shrink: 0; }
+.avatar { width: 36px; height: 36px; border-radius: 50%; corner-shape: round; display: grid; place-items: center;
+  color: var(--dsw-static-neutral-00); font-size: 13px; font-weight: 700; flex-shrink: 0; }
+.avatar0 { background: var(--dsw-static-amber-400); }
+.avatar1 { background: var(--dsw-static-amber-600); }
+.avatar2 { background: var(--dsw-static-neutral-bluish-600); }
+.avatar3 { background: var(--dsw-static-blue-400); }
+.avatar4 { background: var(--dsw-static-green-400); }
+.avatar5 { background: var(--dsw-static-deepseek-500); }
 .metadata { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .metadata strong, .metadata small { display: block; }
 .metadata small { color: var(--dsw-alias-label-tertiary); }
+.metadata p { font-size: 14px; }
+.row .action { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; color: var(--dsw-alias-label-secondary); }
+.row .select { padding-inline: 14px; }
+.selectedRow { background: var(--dsw-alias-interactive-bg-hover); }
 .footer { border-top: 1px solid var(--dsw-alias-border-l4); flex-wrap: wrap; }
-.footer label { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 6px; }
+.manual { flex: 1; min-width: 180px; }
+.manual summary { cursor: pointer; color: var(--dsw-alias-label-tertiary); font-size: 13px; }
+/* The field and its two buttons share one row, and all three carry the same
+   border, padding and font, so the buttons line up with the input the way the
+   prompt input's own controls line up with it. */
+.manualRow { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.manualRow input { flex: 1; min-width: 0; }
 @media (max-width: 600px) {
   .header, .controls, .footer { padding: 14px; }
   .list { padding: 0 14px; }
@@ -69,6 +85,10 @@
 .dialog .dots button { width: 12px; height: 12px; padding: 0; border: 0; border-radius: 50%; corner-shape: round;
   background: color-mix(in srgb, var(--dsw-alias-brand-primary) 35%, transparent); }
 .dialog .dots button[aria-pressed='true'] { background: var(--dsw-alias-brand-primary); }
+/* The saved voice stays visible while other voices are auditioned. */
+.dialog .dots button[aria-current='true'] { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+.selectedMark { display: inline-block; margin: 0 0 8px; padding: 2px 8px; border-radius: 999px;
+  background: color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, transparent); color: var(--dsw-alias-brand-primary); }
 .carousel small { color: var(--dsw-alias-label-tertiary); }
 .quickFooter { padding: 12px 24px 20px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .dialog .browse { margin-right: auto; border: 0; background: transparent; font-size: 13px; }

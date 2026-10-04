@@ -3,7 +3,7 @@
  * glyph, so these are drawn locally; they follow the set's convention
  * (`fill="currentColor"`, take `{size}`) so they inherit the orb's color.
  */
-export type GlyphName = 'mic' | 'mic-off' | 'volume' | 'warn' | 'wave' | 'power' | 'read-back'
+export type GlyphName = 'mic' | 'mic-off' | 'volume' | 'warn' | 'wave' | 'read-back' | 'power' | 'resume' | 'copy' | 'stop' | 'volume-off'
 
 interface GlyphProps {
   size?: number
@@ -52,25 +52,20 @@ export function GlyphWarn({ size = 18 }: GlyphProps) {
   )
 }
 
-/** Five rounded voice bars shaded from pale blue to blue. */
+/**
+ * Five rounded voice bars shaded from pale blue to blue. The ramp is drawn once
+ * and re-tinted per surface through `--voice-wave-*`, so the bars keep their
+ * contrast on a light-mode button instead of washing out; the fallbacks are the
+ * values for the dark surface.
+ */
 export function GlyphWave({ size = 18 }: GlyphProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0.15" y="5.2" width="1.7" height="5.6" rx="0.85" fill="#c3d4ee" />
-      <rect x="3.65" y="0" width="1.7" height="16" rx="0.85" fill="#aec8f0" />
-      <rect x="7.15" y="3.2" width="1.7" height="9.6" rx="0.85" fill="#98b9ef" />
-      <rect x="10.65" y="1.5" width="1.7" height="13" rx="0.85" fill="#80a9ed" />
-      <rect x="14.15" y="5.2" width="1.7" height="5.6" rx="0.85" fill="#6395e7" />
-    </svg>
-  )
-}
-
-/** A power glyph (circle with a vertical gap at the top) — "turn off voice". */
-export function GlyphPower({ size = 18 }: GlyphProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M8 2v5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" fill="none" />
-      <path d="M11.9 4.8a6 6 0 1 1-7.8 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" fill="none" />
+      <rect x="0.15" y="5.2" width="1.7" height="5.6" rx="0.85" fill="var(--voice-wave-1, #c3d4ee)" />
+      <rect x="3.65" y="0" width="1.7" height="16" rx="0.85" fill="var(--voice-wave-2, #aec8f0)" />
+      <rect x="7.15" y="3.2" width="1.7" height="9.6" rx="0.85" fill="var(--voice-wave-3, #98b9ef)" />
+      <rect x="10.65" y="1.5" width="1.7" height="13" rx="0.85" fill="var(--voice-wave-4, #80a9ed)" />
+      <rect x="14.15" y="5.2" width="1.7" height="5.6" rx="0.85" fill="var(--voice-wave-5, #6395e7)" />
     </svg>
   )
 }
@@ -91,6 +86,54 @@ export function GlyphReadBack({ size = 18 }: GlyphProps) {
   )
 }
 
+/** A power glyph (circle with a vertical gap at the top) — "turn off voice". */
+export function GlyphPower({ size = 18 }: GlyphProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 2v5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" fill="none" />
+      <path d="M11.9 4.8a6 6 0 1 1-7.8 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" fill="none" />
+    </svg>
+  )
+}
+
+/** A speaker with a cross — the speaker is muted. */
+export function GlyphVolumeOff({ size = 18 }: GlyphProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2.4 6.1h2.3L8 3.3v9.4L4.7 9.9H2.4a.6.6 0 0 1-.6-.6V6.7a.6.6 0 0 1 .6-.6Z" fill="currentColor" />
+      <path d="M10.6 6.2 14 9.6m0-3.4-3.4 3.4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** A play triangle — resume a parked voice loop. */
+export function GlyphResume({ size = 18 }: GlyphProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M5 3.2a.9.9 0 0 1 1.38-.75l6 4.8a.9.9 0 0 1 0 1.5l-6 4.8A.9.9 0 0 1 5 12.6V3.2Z" fill="currentColor" />
+    </svg>
+  )
+}
+
+/** A cross — the voice is connected, so this control stops it. */
+export function GlyphStop({ size = 18 }: GlyphProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4.4 4.4 11.6 11.6M11.6 4.4 4.4 11.6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** Two offset sheets — copy the failure text. */
+export function GlyphCopy({ size = 18 }: GlyphProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M5.4 1.8h6.2c.7 0 1.2.5 1.2 1.2v6.2h-1.5V3.3H5.4V1.8Z" fill="currentColor" />
+      <rect x="2.6" y="5.4" width="7.9" height="8" rx="1.3" fill="currentColor" />
+    </svg>
+  )
+}
+
 /** Resolve a glyph by name. */
 export function Glyph({ name, size }: GlyphProps & { name: GlyphName }) {
   const s = size ?? 18
@@ -103,10 +146,18 @@ export function Glyph({ name, size }: GlyphProps & { name: GlyphName }) {
       return <GlyphWarn size={s} />
     case 'wave':
       return <GlyphWave size={s} />
-    case 'power':
-      return <GlyphPower size={s} />
     case 'read-back':
       return <GlyphReadBack size={s} />
+    case 'power':
+      return <GlyphPower size={s} />
+    case 'resume':
+      return <GlyphResume size={s} />
+    case 'volume-off':
+      return <GlyphVolumeOff size={s} />
+    case 'copy':
+      return <GlyphCopy size={s} />
+    case 'stop':
+      return <GlyphStop size={s} />
     case 'mic':
     default:
       return <GlyphMic size={s} />

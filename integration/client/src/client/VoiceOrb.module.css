@@ -1,0 +1,126 @@
+/* Full-width dock above the composer: it never participates in the message history. */
+.frame {
+  display: grid;
+  place-items: center;
+  min-height: 104px;
+  padding: 4px 0 10px;
+}
+
+.resume {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+.resume:focus-visible { outline: 2px solid #c89572; outline-offset: 4px; }
+
+/* A blue sky stays visible behind independently moving pale cloud layers.
+ * Playback intensity changes the orb's scale without using microphone input. */
+.orb {
+  --voice-orb-scale: 1;
+  --voice-orb-shadow: 22%;
+  --voice-orb-cloud-growth: 0;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  overflow: hidden;
+  border-radius: 50%;
+  corner-shape: round;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 78% 17%, rgba(229, 240, 255, .58), transparent 37%),
+    linear-gradient(145deg, #6384eb 0%, #84adf4 47%, #b3d5ff 100%);
+  background-size: 145% 145%;
+  animation: orb-sky 6200ms ease-in-out infinite alternate;
+  box-shadow: 0 8px 32px color-mix(in srgb, #7c8fff var(--voice-orb-shadow), transparent);
+  transform: scale(var(--voice-orb-scale));
+  transition: transform 120ms ease-out, box-shadow 160ms ease-out;
+}
+
+.orb::before {
+  content: '';
+  position: absolute;
+  width: 105%;
+  height: 90%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(48, 78, 211, .68), rgba(66, 101, 228, .28) 48%, transparent 74%);
+  filter: blur(10px);
+  animation: sky-contrast 5700ms ease-in-out infinite;
+}
+
+.cloud,
+.cloud::before,
+.cloud::after {
+  position: absolute;
+  width: 78%;
+  height: 52%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(255,255,255,.96), rgba(224,239,255,.88) 42%, rgba(163,197,247,.22) 76%, transparent 88%);
+  filter: blur(7px);
+  content: '';
+}
+
+.cloud {
+  transform: translate(-11%, 19%) rotate(-14deg);
+  opacity: .88;
+  animation: cloud-ambient 4700ms ease-in-out infinite alternate;
+}
+.cloud::before { transform: translate(45%, -70%) scale(.8); opacity: .86; animation: cloud-ambient-front 3900ms ease-in-out infinite alternate; }
+.cloud::after { transform: translate(-50%, -48%) scale(.68); opacity: .78; animation: cloud-ambient-back 5200ms ease-in-out infinite alternate-reverse; }
+
+.orb[data-standby] {
+  background:
+    radial-gradient(circle at 78% 17%, rgba(255, 216, 177, .3), transparent 37%),
+    linear-gradient(145deg, #665d70 0%, #987565 52%, #c89572 100%);
+  box-shadow: 0 8px 28px rgba(133, 91, 69, .25);
+}
+.orb[data-standby]::before { visibility: hidden; }
+.orb[data-standby] .cloud,
+.orb[data-standby] .cloud::before,
+.orb[data-standby] .cloud::after {
+  background: radial-gradient(ellipse at center, rgba(245, 222, 211, .82), rgba(174, 151, 157, .56) 48%, transparent 88%);
+}
+
+@keyframes cloud-ambient {
+  from { transform: translate(-30%, 9%) rotate(-19deg) scale(calc(.76 + var(--voice-orb-cloud-growth))); filter: blur(8px) brightness(.93); }
+  to { transform: translate(13%, 28%) rotate(-5deg) scale(calc(1.16 + var(--voice-orb-cloud-growth))); filter: blur(6px) brightness(1.07); }
+}
+
+@keyframes cloud-ambient-front {
+  from { transform: translate(26%, -80%) rotate(-10deg) scale(calc(.58 + var(--voice-orb-cloud-growth))); filter: blur(8px) hue-rotate(-12deg); }
+  to { transform: translate(69%, -54%) rotate(8deg) scale(calc(1.04 + var(--voice-orb-cloud-growth))); filter: blur(5px) hue-rotate(12deg); }
+}
+
+@keyframes cloud-ambient-back {
+  from { transform: translate(-75%, -30%) rotate(9deg) scale(calc(.52 + var(--voice-orb-cloud-growth))); filter: blur(9px) brightness(.89); }
+  to { transform: translate(-24%, -63%) rotate(-8deg) scale(calc(.91 + var(--voice-orb-cloud-growth))); filter: blur(6px) brightness(1.09); }
+}
+
+
+@keyframes sky-contrast {
+  0%, 100% { transform: translate(-24%, -28%) rotate(-18deg) scale(.78); opacity: .16; }
+  50% { transform: translate(22%, -4%) rotate(22deg) scale(1.12); opacity: .72; }
+}
+
+@keyframes orb-sky {
+  from { background-position: 12% 20%; filter: hue-rotate(-6deg) saturate(.98); }
+  to { background-position: 88% 76%; filter: hue-rotate(9deg) saturate(1.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb {
+    animation: none;
+    box-shadow: 0 8px 32px color-mix(in srgb, #7c8fff 22%, transparent);
+    transform: none;
+    transition: none;
+  }
+  .cloud,
+  .cloud::before,
+  .cloud::after { animation: none; }
+  .orb::before { animation: none; opacity: .16; }
+}

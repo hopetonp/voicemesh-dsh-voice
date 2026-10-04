@@ -1,70 +1,81 @@
 /**
- * MicDock: the voice control.
+ * MicDock: the voice control, inside the message area.
  *
- * Mirrors the Flutter voice control: a fixed column at the bottom-right with a
- * round conversation orb, a status panel that floats above it on hover, a
- * separate action menu beneath it (mute + read back output) that is revealed on
- * hover, and a live active-time clock that shows only while the voice is active.
+ * One round button, seated where the composer's Send control sits while the
+ * draft is empty: it starts voice when off and stops it when on, and the icon
+ * says which. Everything else the live loop needs — the elapsed clock, the
+ * pause/resume pair, and mute — lives in the tool row beside the waveform
+ * (`VoiceQuickControls`), so the whole voice surface stays in the composer and
+ * there is no second, floating layout to keep in step.
  *
- * The orb is the one thing always visible. The hover panels (status, menu) and
- * the active timer never reflow the dock: the menu and timer occupy fixed-height
- * slots that are simply transparent when empty, so the orb's position is
- * constant — the Flutter contract ("the orb's resting position is unchanged").
+ * Hovering the button names the action while the voice is off; once the voice
+ * is live the button carries no label of its own.
  */
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
-import { phaseColor, phaseLabel, formatDuration, isActivePhase } from './state.ts'
-import { Glyph, GlyphMic, GlyphMicOff } from './glyphs.tsx'
+import { phaseColor } from './state.ts'
+import { Glyph } from './glyphs.tsx'
 import type { MicDockActions } from './slots.ts'
 import css from './MicDock.module.css'
 
-/** Full props of the dock entry: InputZone owner share + injected verbs + the locale seat. */
+/**
+ * The live fill is the composer's send hue, exactly as Send wears it, in both
+ * themes; only the hover lifts it (a lighter step of the same hue, since the
+ * theme's own hover token goes darker). A muted or failed session carries its
+ * own signal colour through the same variable, and only the inactive button
+ * differs per theme (black in dark mode).
+ */
+const LIVE_FILL = 'var(--dsw-alias-button-info-fill)'
+const LIVE_HOVER = 'color-mix(in srgb, var(--dsw-alias-button-info-fill) 80%, white)'
+
+/** Full props of the composer entry: session share + injected verbs + the locale seat. */
 export type MicDockProps =
+  // The overlay's runtime props carry the session for the primary-action replacement and the
+  // headless dock entry that stops a session's voice.
   Pick<import('@deepseek-ai/dsh-client-ui-slots').PropsRuntime<'conversation.input.dock'>, 'sessionId'>
   & MicDockActions
   & PropsLocale<'voice'>
-  & { placement?: 'orb' | 'panel' }
 
-/** The dock adapter: a stable orb backed by the injected verbs + stores. */
-export function MicDock({ sessionId, onToggle, onStop, onMute, sources, t, placement = 'orb' }: MicDockProps) {
+/** The voice control: a round button in the composer's primary-action position. */
+export function MicDock({ sessionId, onToggle, onStop, sources, t }: MicDockProps) {
   const voice = useSyncExternalStore(sources.voice.subscribe, sources.voice.getSnapshot)
   const config = useSyncExternalStore(sources.config.subscribe, sources.config.getSnapshot)
-  const supported = useSyncExternalStore(sources.panelSupport?.subscribe ?? subscribeNoPanel, sources.panelSupport?.getSnapshot ?? noPanel)
-  const [hover, setHover] = useState(false)
   const [busy, setBusy] = useState(false)
-  const latestStop = useRef(onStop)
-  latestStop.current = onStop
-  useEffect(() => {
-    if (placement !== 'orb' || config.voiceMode !== 'sts') return
-    return () => { latestStop.current(sessionId) }
-  }, [sessionId, config.voiceMode, placement])
 
   const phase = voice.phase
   const error = voice.error
   const muted = config.muted
-  const active = phase !== 'idle'
+  // A failed activation is over, not live: its session was torn down, so the button offers a new start
+  // instead of only a stop. Treating it as live left the control stuck on the failure until a reload.
+  const active = phase !== 'idle' && phase !== 'error'
   const connecting = phase === 'connecting'
-  // Muting paints both layouts red. Otherwise, idle stays the neutral surface
-  // (off is obvious); connecting stays neutral while the icon animates;
-  // standby dims the listening color so it reads as parked, distinct from off.
-  // Pulsing (the breathing halo) is reserved for genuinely live states.
+  // Muting paints the button red. Otherwise, idle stays the neutral surface (off
+  // is obvious) and connecting stays neutral while the icon animates. Pulsing
+  // (the level swell) is reserved for genuinely live states.
   const lit = muted || (active && phase !== 'connecting')
   const pulsing = active && lit && !connecting && phase !== 'standby'
-  const clockActive = isActivePhase(phase)
   const color = muted ? 'var(--dsw-alias-state-error-primary, #c2544d)' : phaseColor(phase, error)
-  // The five-bar voice glyph flips to a
-  // crossed mic when muted and to a warning when the loop errored.
-  const glyph = muted ? 'mic-off' : error !== null ? 'warn' : 'wave'
+  // Voice that is on wears the (darkened) send hue in every live state, standby
+  // included: parking the voice changes what the tool row offers, not how the
+  // voice control looks. Muted and failed states keep their own signal colors.
+  const live = lit && !muted && error === null
+  const fill = live ? LIVE_FILL : color
+  const hoverFill = live ? LIVE_HOVER : color
+  // The icon says what the button does: a cross while the voice is connected —
+  // standby included, since the control still stops the voice and resuming
+  // belongs to the tool row's resume button — the moving bars while the
+  // connection opens, and the crossed mic when muted.
+  const glyph = error !== null ? 'warn' : muted ? 'mic-off' : connecting ? 'wave' : active ? 'stop' : 'wave'
   const scale = pulsing ? 1 + voice.level * 0.08 : 1
-  const statusLabel = error !== null ? `${t('mic.err')}: ${error}` : phase === 'idle' ? t('status.idle') : phaseLabel(phase, error)
+  // The hover hint belongs to the button only while the voice is off: it names
+  // the action ("Start voice chat"), or carries a leftover failure. A live
+  // button shows no status label — the tool row already says what is happening.
+  const hint = active ? null : error !== null ? `${t('mic.err')}: ${error}` : t('status.idle')
+
 
   const onClick = (): void => {
-    // Tapping while parked (standby) wakes the loop back to listening — it must
-    // not turn voice off. Matches the Flutter control ("tap to resume").
-    if (phase === 'standby') {
-      onToggle(sessionId)
-      return
-    }
+    // The cross means stop in every live state, standby included; the tool row
+    // owns resuming a parked voice.
     if (active) {
       onStop(sessionId)
     } else {
@@ -74,118 +85,141 @@ export function MicDock({ sessionId, onToggle, onStop, onMute, sources, t, place
     }
   }
 
-  const inPanel = config.controlLayout === 'panel' && supported
-  if ((placement === 'panel') !== inPanel) return null
-  if (placement === 'panel') return <div className={css.inlineControls} style={{ ['--voice-color' as string]: color }}>
-    <button type="button" className={`${css.orb} ${css.inlineButton} ${css.inlinePrimary}${lit ? ` ${css.lit}` : ''}${connecting ? ` ${css.connecting}` : ''}${pulsing ? ` ${css.inlinePulse}` : ''}`} onClick={onClick}
-      style={{ backgroundColor: lit ? color : undefined }}
-      aria-pressed={active} aria-label={active ? t('mic.stop') : t('mic.off')}>
-      <span className={css.glyph} style={{ color: lit || connecting ? 'var(--dsw-alias-label-primary-foreground)' : 'var(--dsw-alias-label-secondary)', transform: `scale(${scale})` }}><Glyph name={glyph} size={20} /></span>
-    </button>
-    <span className={css.inlineHint} role="tooltip">{statusLabel}</span>
-    {active && <div className={css.inlineMenu}>
-      {clockActive && <span className={css.inlineTimer}>{formatDuration(voice.activeSeconds)}</span>}
-      <button type="button" className={css.inlineButton} onClick={() => onMute()}
-        aria-label={muted ? t('mic.unmute') : t('mic.mute')}>
-        {muted ? <GlyphMicOff size={16} /> : <GlyphMic size={16} />}
-      </button>
-      {active && <button type="button" className={css.inlineButton} onClick={() => onStop(sessionId)} aria-label={t('mic.power')}>
-        <Glyph name="power" size={16} />
-      </button>}
-    </div>}
-  </div>
-
-  return (
-    <div
-      className={css.dock}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+  return <div className={css.controls}>
+    <button
+      type="button"
+      className={`${css.control}${lit ? ` ${css.lit}` : ''}${connecting ? ` ${css.connecting}` : ''}`}
+      onClick={onClick}
+      style={{ ['--voice-fill' as string]: fill, ['--voice-hover' as string]: hoverFill }}
+      aria-pressed={active}
+      aria-label={active ? t('mic.stop') : t('mic.off')}
     >
-      {/* Status panel: floats above the orb, revealed on hover. Only shown when
-          the voice is in a non-obvious state — the idle "voice off" case needs
-          no label (the neutral orb already says it). */}
-      {hover && (phase !== 'idle' || error !== null) ? (
-        <div className={css.statusPanel}>
-          <span className={css.statusDot} style={{ backgroundColor: color }} />
-          <span className={css.statusLabel}>{statusLabel}</span>
-        </div>
-      ) : null}
+      <span className={css.glyph} style={{ color: lit || connecting ? '#fff' : 'var(--dsw-alias-label-secondary)', transform: `scale(${scale})` }}>
+        <Glyph name={glyph} size={18} />
+      </span>
+    </button>
+    {hint === null ? null : <span className={css.hint} role="tooltip">{hint}</span>}
+  </div>
+}
 
-      {/* The round conversation orb (always visible). */}
-      <button
-        type="button"
-        className={css.orbWrap}
-        onClick={onClick}
-        aria-pressed={active}
-        aria-label={active ? t('mic.stop') : t('mic.off')}
-      >
-        <span
-          className={`${css.orb}${lit ? ` ${css.lit}` : ''}${muted ? ` ${css.muted}` : ''}${connecting ? ` ${css.connecting}` : ''}`}
-          style={{ backgroundColor: lit ? color : undefined, ['--halo' as string]: color, transform: `scale(${scale})` }}
-        >
-          <span className={
-            pulsing ? `${css.halo} ${css.on} ${css.pulse}` : css.halo
-          } />
-          <span
-            className={css.glyph}
-            style={{ color: lit ? 'var(--dsw-alias-label-primary-foreground)' : 'var(--dsw-alias-label-secondary)' }}
-          >
-            <Glyph name={glyph} size={22} />
-          </span>
-        </span>
-      </button>
+interface PrimaryAction {
+  left: number
+  top: number
+  width: number
+  height: number
+}
 
-      {/* Action menu: a fixed-height slot below the orb. Revealing the buttons
-          on hover fills the already-reserved slot, so the orb never moves. */}
-      <div className={css.menuSlot}>
-        {hover ? (
-          <div className={css.actionsMenu}>
-            {/* Turn voice off: a dedicated stop button (the same verb the live
-                orb uses), shown only while the voice is on — it is meaningless
-                (and would be dead) when idle off. */}
-            {active ? (
-              <button
-                type="button"
-                className={`${css.actionBtn} ${css.powerBtn}`}
-                onClick={() => onStop(sessionId)}
-                aria-label={t('mic.power')}
-                title={t('mic.power')}
-              >
-                <Glyph name="power" size={14} />
-              </button>
-            ) : null}
-            {active && <button
-              type="button"
-              className={css.actionBtn}
-              onClick={() => onMute()}
-              aria-label={muted ? t('mic.unmute') : t('mic.mute')}
-              title={muted ? t('mic.unmute') : t('mic.mute')}
-            >
-              {muted ? <GlyphMicOff size={14} /> : <GlyphMic size={14} />}
-            </button>}
+/**
+ * VoiceMesh's compatibility overlay for the current composer primary action.
+ *
+ * The published overlay slot supplies a stable mount inside the composer card. The primary action
+ * itself is not a published slot, so this deliberately treats the current last button as an
+ * optional visual anchor: any missing or unfamiliar state leaves the Harness control untouched.
+ */
+export function MicDockOverlay(props: MicDockProps) {
+  const root = useRef<HTMLDivElement>(null)
+  const [action, setAction] = useState<PrimaryAction | null>(null)
 
-          </div>
-        ) : null}
-      </div>
+  useLayoutEffect(() => {
+    const overlay = root.current
+    if (overlay === null) return
+    const card = overlay.closest<HTMLElement>('[data-composer-card]')
+    if (card === null) return
 
-      {/* Active-time clock: a fixed-height slot, shown only while active. */}
-      <div className={css.timerSlot}>
-        {clockActive ? (
-          <span className={`${css.clock} ${css.clockActive}`}>
-            {formatDuration(voice.activeSeconds)}
-          </span>
-        ) : null}
-      </div>
+    let hidden: HTMLButtonElement | undefined
+    let priorVisibility = ''
+    let priorAriaHidden: string | null = null
+    let priorTabIndex: string | null = null
+    let resizeObserver: ResizeObserver | undefined
+    let stopTracking: (() => void) | undefined
+    const restore = () => {
+      stopTracking?.()
+      stopTracking = undefined
+      if (hidden === undefined) return
+      hidden.style.visibility = priorVisibility
+      if (priorAriaHidden === null) hidden.removeAttribute('aria-hidden')
+      else hidden.setAttribute('aria-hidden', priorAriaHidden)
+      if (priorTabIndex === null) hidden.removeAttribute('tabindex')
+      else hidden.setAttribute('tabindex', priorTabIndex)
+      hidden = undefined
+    }
+    const locate = (): void => {
+      restore()
+      const editor = card.querySelector<HTMLElement>('[contenteditable="true"]')
+      const attachments = card.querySelector('[data-slot="conversation.input.attachments"]')
+      const buttons = card.querySelectorAll<HTMLButtonElement>('button')
+      const target = buttons.item(buttons.length - 1)
+      // Empty Send is disabled by the composer itself. A noneditable editor identifies locked,
+      // inert, and busy states; a rendered attachment means Send must remain available.
+      if (editor === null || editor.textContent?.trim() !== ''
+        || (attachments !== null && attachments.childElementCount !== 0)
+        || target === null || target.querySelector('svg rect') !== null) {
+        setAction(null)
+        return
+      }
+      priorVisibility = target.style.visibility
+      priorAriaHidden = target.getAttribute('aria-hidden')
+      priorTabIndex = target.getAttribute('tabindex')
+      target.style.visibility = 'hidden'
+      target.setAttribute('aria-hidden', 'true')
+      target.setAttribute('tabindex', '-1')
+      hidden = target
+      const place = () => {
+        if (hidden !== target) return
+        const cardRect = card.getBoundingClientRect()
+        const rect = target.getBoundingClientRect()
+        const next = { left: rect.left - cardRect.left, top: rect.top - cardRect.top, width: rect.width, height: rect.height }
+        setAction(current => current !== null && current.left === next.left && current.top === next.top
+          && current.width === next.width && current.height === next.height ? current : next)
+      }
+      place()
+      if (typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(place)
+        resizeObserver.observe(card)
+        if (target.parentElement !== null) resizeObserver.observe(target.parentElement)
+      }
+      window.addEventListener('resize', place)
+      stopTracking = () => {
+        window.removeEventListener('resize', place)
+        resizeObserver?.disconnect()
+      }
+    }
+    locate()
+    const observer = new MutationObserver(locate)
+    observer.observe(card, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ['contenteditable', 'disabled'],
+    })
+    return () => { observer.disconnect(); restore() }
+  }, [])
+
+  if (action === null) return <div ref={root} className={css.overlay} />
+  return (
+    <div ref={root} className={css.overlay} style={{ left: action.left, top: action.top + 2, width: action.width, height: action.height }}>
+      <MicDock {...props} />
     </div>
   )
 }
 
-function noPanel(): boolean { return false }
-function subscribeNoPanel(): () => void { return () => {} }
-
-/** Compact adapter for the optional composer control slot. */
-export function PanelVoiceControl(props: Omit<MicDockProps, 'zone'> & { fallback?: import('react').ReactNode }) {
-  const config = useSyncExternalStore(props.sources.config.subscribe, props.sources.config.getSnapshot)
-  if (config.controlLayout !== 'panel') return props.fallback ?? null
-  return <MicDock {...props} placement="panel" />
+/**
+ * Session-lifetime guard: a headless entry in the composer's dock strip.
+ *
+ * The voice control itself is mounted only while the draft is empty, so it
+ * cannot own the rule that a session's voice goes away with the session —
+ * typing must never stop voice. This entry renders nothing and stops voice when
+ * the session it was mounted for goes away, keeping sts voice from outliving
+ * its session while the control comes and goes with the draft.
+ */
+export function VoiceSessionGuard({ sessionId, onStop, sources }: MicDockProps): null {
+  const config = useSyncExternalStore(sources.config.subscribe, sources.config.getSnapshot)
+  const latestStop = useRef(onStop)
+  latestStop.current = onStop
+  useEffect(() => {
+    if (config.voiceMode !== 'sts') return
+    return () => { latestStop.current(sessionId) }
+  }, [sessionId, config.voiceMode])
+  return null
 }

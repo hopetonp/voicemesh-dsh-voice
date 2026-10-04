@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile, cp } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, cp, symlink } from 'node:fs/promises';
 import { resolve, join, dirname } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
@@ -11,16 +11,62 @@ const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
 const output = join(root, '.release', 'package-' + Date.now());
 const modules = join(output, 'node_modules');
 await mkdir(modules, { recursive: true });
+const clientSource = join(root, 'integration/client');
+const clientBuild = join(output, 'client-build');
+
+// The published browser factory is owned by VoiceMesh. Stage its source under
+// this package, then use the selected Harness checkout only for its installed
+// build runtime and workspace dependencies. Nothing under that checkout is
+// written during this process.
+await cp(join(clientSource, 'src'), join(clientBuild, 'src'), { recursive: true });
+await cp(join(clientSource, 'package.json'), join(clientBuild, 'package.json'));
+await symlink(
+  join(harness, 'packages/client/voice-client/node_modules'),
+  join(clientBuild, 'node_modules'),
+);
+await writeFile(join(clientBuild, 'tsconfig.json'), JSON.stringify({
+  extends: join(harness, 'tsconfig.base.client.json'),
+  compilerOptions: {
+    baseUrl: '.',
+    paths: {},
+    rootDir: 'src',
+    outDir: 'lib/types',
+    composite: false,
+    incremental: false,
+    ignoreDeprecations: '6.0',
+  },
+  include: ['src'],
+}, null, 2) + '\n');
+await writeFile(join(clientBuild, 'tsdown.config.mjs'), `
+import { clientBundle } from ${JSON.stringify(pathToFileURL(join(harness, 'packages/client/tsdown.client.ts')).href)};
+
+const configure = clientBundle('@deepseek-ai/dsh-voice-client', ['lib/types/index.js'], {
+  clientBanner: () => '/* voicemesh-integration-client */',
+});
+
+export default (options) => configure(options).map(config => ({
+  ...config,
+  outputOptions: { ...config.outputOptions, codeSplitting: false },
+}));
+`);
+execFileSync(join(harness, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.json'], {
+  cwd: clientBuild, stdio: 'inherit',
+});
+execFileSync(join(harness, 'node_modules/.bin/tsdown'), ['--config', 'tsdown.config.mjs', '--tsconfig', 'tsconfig.json'], {
+  cwd: clientBuild, stdio: 'inherit',
+});
+if (!(await readFile(join(clientBuild, 'lib/client.js'), 'utf8')).includes('voicemesh-integration-client')) {
+  throw new Error('VoiceMesh client build did not retain its integration-client source marker.');
+}
 const components = [
   ['@deepseek-ai/dsh-voice-host', 'packages/host/voice-host'],
-  ['@deepseek-ai/dsh-voice-client', 'packages/client/voice-client'],
+  ['@deepseek-ai/dsh-voice-client', clientBuild],
 ];
-execFileSync('pnpm', ['exec', 'tsdown'], { cwd: join(harness, 'packages/client/voice-client'), stdio: 'inherit' });
 const { build } = await import(pathToFileURL(join(harness, 'node_modules/tsdown/dist/index.mjs')).href);
 const provenance = [];
 let clientDsh;
 for (const [name, relative] of components) {
-  const source = join(harness, relative), target = join(modules, name);
+  const source = name.endsWith('-client') ? relative : join(harness, relative), target = join(modules, name);
   const original = JSON.parse(await readFile(join(source, 'package.json'), 'utf8'));
   await mkdir(join(target, 'lib'), { recursive: true });
   if (name.endsWith('-host')) {

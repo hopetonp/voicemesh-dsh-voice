@@ -1,4 +1,5 @@
 /** Incremental preview transport; authentication uses the existing host session. */
+import { hostWebSocketUrl } from './host-address.ts'
 import { parseVoiceSample, type VoiceSample, type VoiceSelection } from './voice-catalog.ts'
 
 /**
@@ -12,7 +13,7 @@ import { parseVoiceSample, type VoiceSample, type VoiceSelection } from './voice
 export async function streamVoicePreview(selection: VoiceSelection, voice: string, signal: AbortSignal,
   onAudio: (sample: VoiceSample) => void): Promise<void> {
   signal.throwIfAborted()
-  const socket = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/voice-sts/preview`)
+  const socket = new WebSocket(hostWebSocketUrl('/voice-sts/preview'))
   let abort: () => void = () => {}
   try {
     await new Promise<void>((resolve, reject) => {
