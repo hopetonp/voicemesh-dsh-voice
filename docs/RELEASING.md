@@ -1,6 +1,6 @@
 # Releasing VoiceMesh
 
-`0.1.0-beta.1` is a private candidate. It is not approved for npm publication.
+`0.1.0-beta.1` has a publishable candidate tarball but has not been published.
 
 ## Candidate evidence
 
@@ -8,7 +8,7 @@
 
 An official Desktop build was also checked for the client control, and a user later reported live voice working after adding provider keys. That report is useful product evidence, but it does not complete an isolated credentialed smoke of the candidate tarball.
 
-The latest tarball passed a bounded archive scan and keyless fresh stock-Web UI, setup-route, restart, and removal checks. `docs/RELEASE_EVIDENCE.md` names its exact path and SHA-256. Do not carry forward live-voice evidence from an earlier archive as evidence for this candidate.
+The current publishable tarball passed a bounded archive scan and keyless setup-route checks in fresh stock Web. The preceding private tarball passed browser composer, restart, and removal checks; the publishable tarball has not had its browser UI independently verified because the browser client blocked direct localhost navigation. `docs/RELEASE_EVIDENCE.md` names both exact paths and SHA-256 values. Do not carry forward live-voice evidence from an earlier archive as evidence for this candidate.
 
 ## Prepare a candidate
 
@@ -24,7 +24,7 @@ Package only after reviewing the staged result:
 npm run package -- /path/to/built/harness
 ```
 
-Staging and packaging create private review artifacts. They do not authorize publication.
+When the release checks are ready, build the publishable candidate from the same source with `npm run package -- /path/to/built/harness --public`. The root package will omit `private` and set public npm access. Packaging does not publish; review the new tarball and its SHA-256 before `npm publish <tarball> --tag beta --access public`.
 
 ## Required release review
 
@@ -40,4 +40,4 @@ Use a browser microphone grant for the live smoke and record the Harness version
 
 ## Publication blockers
 
-Do not publish while the exact candidate lacks a credentialed live-voice smoke or npm-scope authorization. Its bounded archive scan, generated third-party license inventory, and keyless stock-Web lifecycle checks are recorded, but none establishes live-provider behavior. A user-reported Desktop test of another archive does not establish it either.
+Do not publish while the exact publishable candidate lacks a user-run live-voice turn or npm-scope authorization. Its bounded archive scan and keyless setup-route checks are recorded, but neither establishes live-provider behavior. A user-reported Desktop test of another archive does not establish it either.

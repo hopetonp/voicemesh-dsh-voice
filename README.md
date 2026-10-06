@@ -2,7 +2,7 @@
 
 VoiceMesh adds live voice conversations to DeepSeek Harness. Choose a realtime speech provider, or use a pipeline that combines speech recognition, a conversational model, and speech synthesis.
 
-**Release status:** `@voicemesh/dsh-voice@0.1.0-beta.1` is a private release candidate, not a public npm release. Its keyless stock-Web plugin UI has been verified with published `@deepseek-ai/dsh@0.2.0-rc.2`. A Desktop user reported live voice working after provider keys were added to an earlier candidate. The exact beta tarball still needs live-provider and publication checks before it can be released.
+**Beta compatibility:** The publishable `0.1.0-beta.1` candidate passed keyless setup checks with published `@deepseek-ai/dsh@0.2.0-rc.2`. A preceding private build passed the composer-control check. Live-provider behavior on the publishable tarball has not yet been verified.
 
 ## Install a reviewed candidate
 
@@ -12,7 +12,7 @@ Use the candidate tarball and Harness profile named in its release notes:
 dsh plugin --profile web add ./voicemesh-dsh-voice-0.1.0-beta.1.tgz
 ```
 
-In the Plugins list, enable VoiceMesh. If setup is incomplete, select **Finish voice setup**, then **Go to setup**. For realtime voice, choose a live provider and its voice. For pipeline voice, choose speech-recognition and speech-synthesis providers plus a conversational model; DeepSeek is one of the conversational-model presets. Add the required provider keys through the VoiceMesh settings form.
+In the Plugins list, enable **Voice Conversation**. If setup is incomplete, select **Finish voice setup**, then **Go to setup**. For realtime voice, choose a live provider and its voice. For pipeline voice, choose speech-recognition and speech-synthesis providers plus a conversational model; DeepSeek is one of the conversational-model presets. Add the required provider keys through the VoiceMesh settings form.
 
 ## Supported provider choices
 
@@ -47,9 +47,9 @@ Do not include API keys, raw conversation logs, or private project content in bu
 
 ## Known limits
 
-- The latest `0.1.0-beta.1` tarball passed a bounded archive scan and fresh keyless stock-Web install, setup-route, restart, and removal checks. Credentialed live voice, interruption, standby, and persisted history remain unverified for that exact tarball.
+- The publishable `0.1.0-beta.1` tarball passed a bounded archive scan and fresh keyless stock-Web install and setup-route check. Browser composer, restart, and removal checks passed on a preceding private build; credentialed live voice, interruption, standby, and persisted history remain unverified for the publishable tarball.
 - The reported Desktop live test does not independently verify interruption, standby, persisted history, or removal and restart behavior.
-- Public npm publication remains blocked by npm-scope authorization and the exact-tarball live voice check. The generated license inventory covers the known bundled dependencies; its completeness has been checked against the package's source markers and direct dependencies.
+- The generated license inventory covers the known bundled dependencies and is included with this package.
 
 See [license](LICENSE) and [notices](NOTICE). Composer attribution is retained in `LICENSE-COMPOSER`.
 

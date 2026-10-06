@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 if (!process.argv[2]) throw new Error('Provide the built Harness checkout path.');
 const harness = resolve(process.argv[2]);
+const publicRelease = process.argv.includes('--public');
 const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
 const output = join(root, '.release', 'package-' + Date.now());
 const modules = join(output, 'node_modules');
@@ -207,7 +208,7 @@ if (!clientBundle.includes('id: "@deepseek-ai/dsh-voice-client"')) {
 await writeFile(join(output, 'lib/client.js'), clientBundle.replace(
   'id: "@deepseek-ai/dsh-voice-client"', 'id: "@voicemesh/dsh-voice"',
 ));
-const bundledLicenseCount = await writeBundledDependencyLicenses(join(output, 'THIRD_PARTY_LICENSES'), [
+await writeBundledDependencyLicenses(join(output, 'THIRD_PARTY_LICENSES'), [
   join(harness, 'packages/host/voice-host/lib'),
   join(clientBuild, 'lib'),
   join(harness, 'packages/host/voice-host/node_modules/@voicemesh/composer/lib'),
@@ -216,7 +217,7 @@ const bundledLicenseCount = await writeBundledDependencyLicenses(join(output, 'T
   join(harness, 'packages/host/voice-host/node_modules/@voicemesh/composer'),
 ]);
 const packaged = {
-  name: manifest.name, version: manifest.version, private: true, type: 'module',
+  name: manifest.name, version: manifest.version, ...(publicRelease ? { publishConfig: { access: 'public' } } : { private: true }), type: 'module',
   description: manifest.description, icon: manifest.icon, author: manifest.author, repository: manifest.repository,
   engines: manifest.engines, files: ['icon.svg', 'lib', 'locale', 'cordis.patch.yml', 'provenance.json', 'README.md', 'LICENSE', 'LICENSE-COMPOSER', 'NOTICE', 'THIRD_PARTY_LICENSES'],
   exports: { '.': './lib/index.js', './host': './lib/host.js', './client': './lib/client.js', './locale/*.json': './locale/*.json', './host/locale/*.json': './locale/host/*.json', './package.json': './package.json' },
@@ -231,7 +232,7 @@ await writeFile(join(output, 'provenance.json'), JSON.stringify(provenance, null
 await cp(join(root, 'LICENSE'), join(output, 'LICENSE'));
 await cp(join(root, 'LICENSE-COMPOSER'), join(output, 'LICENSE-COMPOSER'));
 await cp(join(root, 'NOTICE'), join(output, 'NOTICE'));
-await writeFile(join(output, 'README.md'), `# VoiceMesh Harness plugin — private beta artifact\n\nIncludes Composer license and ${bundledLicenseCount} bundled third-party dependency notices. Not approved for public distribution.\n`);
+await cp(join(root, 'README.md'), join(output, 'README.md'));
 await writeFile(join(output, 'cordis.patch.yml'), `# Connection RPC registration accesses webServer on its owning context.
 - id: connection
   inject: [webRuntime, webServer]

@@ -158,6 +158,18 @@ The exact archive was installed in a new isolated stock-Web home, `/Users/hgp/.d
 
 The same isolated home was restarted with the exact tarball. `scripts/check-setup.mjs` passed six credential-status operations, local-model discovery, and an unauthenticated 401 without changing credentials. The normal plugin removal command succeeded; after another restart, its profile manifest, lockfile, and configuration had no VoiceMesh package or voice rows. No provider call was made. The remaining behavior not verified on this tarball is a live voice turn, interruption, standby, and persisted transcript history.
 
-`npm whoami` returned `ENEEDAUTH` on 2026-10-06. The candidate remains private and has not been published.
+`npm whoami` returned `ENEEDAUTH` on 2026-10-06. This reviewed candidate remained private and was not published.
+
+### Publishable beta.1 candidate — 2026-10-06
+
+After copying the full source README into the package and adding an explicit `--public` packager option, the publishable candidate is `/Users/hgp/DeepSeek/voicemesh-dsh-voice/.release/package-1791264235164/voicemesh-dsh-voice-0.1.0-beta.1.tgz`, SHA-256 `ee4bb2d77dc55f0da06ef0462287e3c8e9342035abba3185e66b8d23abdfa698`. Its root manifest has no `private` field and sets `publishConfig.access` to `public`. The packed README matches the source and lists realtime, pipeline, and DeepSeek conversational-model choices.
+
+A bounded review of this exact 24-file archive found no source maps, source/test directories, `.env` or key files, session/transcript logs, absolute `/Users/hgp/` paths in text, or common API-key/private-key patterns. It contains LICENSE, LICENSE-COMPOSER, NOTICE, and 53 generated third-party license entries. The archive was installed in a new isolated stock-Web home at `/Users/hgp/.dsh-voice-public-live-20261006` using published `@deepseek-ai/dsh@0.2.0-rc.2`; the package was enabled and its server ran on port 3906. The keyless setup probe passed six credential-status operations, local-model discovery, and unauthenticated 401 without changing credentials. Browser automation was blocked from direct unauthenticated localhost navigation, so this exact tarball has no independent browser mic check; the preceding private tarball passed that check. No provider call has been made with this archive.
+
+### Final publishable beta.1 test candidate — 2026-10-06
+
+The README was corrected to state the supported realtime and pipeline providers and the limits of the exact public artifact. The final test tarball is `/Users/hgp/DeepSeek/voicemesh-dsh-voice/.release/package-1791264367648/voicemesh-dsh-voice-0.1.0-beta.1.tgz`, SHA-256 `12cf3a9319804ff1966227230549908ab53230a53f6d6ac636ed8d412f090d21`. Its root manifest has no `private` field and requests public npm access; the packed README is byte-identical to the source. A repeat bounded scan found no flagged paths or common secret patterns among its 24 files, and it retains 53 third-party license entries.
+
+This exact tarball is installed and enabled in a new isolated published `@deepseek-ai/dsh@0.2.0-rc.2` stock-Web home, `/Users/hgp/.dsh-voice-public-final-20261006`, running on port 3906 for owner live testing. The authenticated launch URL is stored locally with file mode `0600`. No provider key or paid call has been used in that profile yet. The earlier keyless browser mic check and restart/removal check were on the preceding private artifact; browser automation could not directly navigate to the authenticated page for this final tarball. `npm whoami` last returned `ENEEDAUTH`; publication awaits npm login and the owner's live test result.
 
 Do not publish while any frozen-candidate entry is pending or while the rights, notices, and npm scope evidence remain unresolved. A candidate that repeats the v60 content or manifest failures is rejected.
