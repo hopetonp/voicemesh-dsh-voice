@@ -148,4 +148,16 @@ In a fresh isolated published Harness `0.2.0-rc.2` Web profile, both VoiceMesh r
 
 ## Publish decision
 
+### Beta.1 candidate review — 2026-10-06
+
+The current private candidate is `/Users/hgp/DeepSeek/voicemesh-dsh-voice/.release/package-1791263565004/voicemesh-dsh-voice-0.1.0-beta.1.tgz`, SHA-256 `1005f950a0352ab123b154c0e6d36175455b733884f51d473e1f02ae280e1715`. Its root manifest is `@voicemesh/dsh-voice@0.1.0-beta.1` and bundles the host and client components at that package version. The packager generated `THIRD_PARTY_LICENSES` with 53 dependency entries from the selected build inputs, including FluidVAD's Silero notice and the published `micromark-extension-gfm-table@2.1.2` license. The archive also retains root LICENSE, LICENSE-COMPOSER, and NOTICE.
+
+A bounded scan of all 24 archive files found no source maps, `.env` or private-key files, source/test directories, absolute `/Users/hgp/` paths in text, common API-key or private-key patterns, or session/transcript log files. This is an archive-content scan, not a proof that every possible secret pattern is absent. The served composite browser module and third-party attribution completeness have not been independently reviewed.
+
+The exact archive was installed in a new isolated stock-Web home, `/Users/hgp/.dsh-voice-stock-license-20261006`, with published `@deepseek-ai/dsh@0.2.0-rc.2`. A fresh keyless session showed one voice control for an empty draft, Send while typing, and the voice control again after clearing. No key or provider call was used, and the isolated server was stopped afterward. This verifies plugin activation and composer control on stock Web for this tarball; it does not verify a live voice turn, interruption, standby, or transcript history. The earlier Desktop live-voice report concerned a different archive.
+
+The same isolated home was restarted with the exact tarball. `scripts/check-setup.mjs` passed six credential-status operations, local-model discovery, and an unauthenticated 401 without changing credentials. The normal plugin removal command succeeded; after another restart, its profile manifest, lockfile, and configuration had no VoiceMesh package or voice rows. No provider call was made. The remaining behavior not verified on this tarball is a live voice turn, interruption, standby, and persisted transcript history.
+
+`npm whoami` returned `ENEEDAUTH` on 2026-10-06. The candidate remains private and has not been published.
+
 Do not publish while any frozen-candidate entry is pending or while the rights, notices, and npm scope evidence remain unresolved. A candidate that repeats the v60 content or manifest failures is rejected.

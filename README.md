@@ -1,58 +1,58 @@
 # VoiceMesh for DeepSeek Harness
 
-Voice conversations in DeepSeek Harness, powered by VoiceMesh Composer.
+VoiceMesh adds live voice conversations to DeepSeek Harness. Choose a realtime speech provider, or use a pipeline that combines speech recognition, a conversational model, and speech synthesis.
 
-**Release status:** no public npm release is available. The owner reported a successful live voice test in the isolated Desktop build on 2026-10-04. Third-party license retention, npm scope authorization, and a complete stock-Web release smoke remain open.
+**Release status:** `@voicemesh/dsh-voice@0.1.0-beta.1` is a private release candidate, not a public npm release. Its keyless stock-Web plugin UI has been verified with published `@deepseek-ai/dsh@0.2.0-rc.2`. A Desktop user reported live voice working after provider keys were added to an earlier candidate. The exact beta tarball still needs live-provider and publication checks before it can be released.
 
-## Harness compatibility
+## Install a reviewed candidate
 
-VoiceMesh dispatches the latest spoken request as the coding Session prompt. GPT-Live's orchestration and transcript context remain in its provider configuration, so they never enter the coding Session as a user message. When transcript history is enabled, the VoiceMesh Chat-node contribution renders spoken transcripts; a coding dispatch also appears as an ordinary Harness user message. The resulting presentation still needs a stock-Web packed-artifact smoke before it is accepted for beta.
-
-VoiceMesh may add plugins and profile rows through Harness's published bundle and profile composition pipeline, but must not depend on edits to Harness source packages or shipped application files. A packed-artifact smoke against the supported Harness version remains required before installation or publication.
-
-## Features
-
-- Realtime speech and a configurable speech recognition → conversational model → speech synthesis pipeline.
-- Streaming transcripts, interruption, model-generated backchannels, and coding-agent integration.
-- Provider and voice selection, previews, standby, and optional audio visualization.
-- Credentials configured through the Harness settings integration.
-
-## Architecture
-
-The Harness integration explicitly disables GPT-Live command acknowledgment tracking with `commandAcknowledgments: false`; Composer retains acknowledgment support for other applications.
-
-Composer owns the reusable voice runtime. This repository contains the Harness integration: settings, credentials adapters, coding-task policy, history integration, and controls. It does not contain Composer source.
-
-Release artifacts will include Composer's compiled runtime. Users will install one plugin bundle without separately installing Composer. Local speech models are separate downloads.
-
-The `integration/` directory owns the VoiceMesh client source. The package build stages that client source in this repository; it still reads the voice host implementation and build dependencies from the selected Harness checkout. It does not write to that checkout. The development manifest is not an installable package.
-
-## Installation after beta approval
-
-Use the DeepSeek Harness version named in the approved release notes:
+Use the candidate tarball and Harness profile named in its release notes:
 
 ```sh
-dsh plugin --profile web add ./voicemesh-dsh-voice-<version>.tgz
+dsh plugin --profile web add ./voicemesh-dsh-voice-0.1.0-beta.1.tgz
 ```
 
-After enabling VoiceMesh with incomplete saved selections, it offers **Finish voice setup**. Choose **Go to setup** to open the VoiceMesh page in **Plugins**, where you choose speech recognition, speech synthesis, and a conversational model. Local speech models remain optional downloads; the plugin does not install or select an engine automatically.
+In the Plugins list, enable VoiceMesh. If setup is incomplete, select **Finish voice setup**, then **Go to setup**. For realtime voice, choose a live provider and its voice. For pipeline voice, choose speech-recognition and speech-synthesis providers plus a conversational model; DeepSeek is one of the conversational-model presets. Add the required provider keys through the VoiceMesh settings form.
 
-Restart the web profile after installation. To remove the bundle, run:
+## Supported provider choices
+
+| Mode | Current choices |
+| --- | --- |
+| Realtime speech | GPT Live, OpenAI Realtime, Gemini Live, and xAI Grok. The selected provider handles the live speech conversation. |
+| Pipeline speech recognition | Local Vosk or Parakeet; Deepgram, Grok, OpenAI, Gemini, or Fish Audio. |
+| Pipeline speech synthesis | Local Kokoro; Deepgram, Grok, OpenAI, Gemini, or Fish Audio. |
+| Pipeline conversational model | A model already configured in Harness, or an OpenAI-compatible endpoint. Endpoint presets include DeepSeek, OpenAI, Grok, Gemini, Groq, Mistral, and OpenRouter; a manual endpoint is also available. |
+
+The model and voice lists depend on the selected provider and its current configuration. DeepSeek is a conversational-model option in pipeline mode, not a realtime speech provider.
+
+VoiceMesh does not download or choose local pipeline speech models automatically. If you select a local speech engine, download its model pack through the setup flow and select it there. A local speech-recognition or synthesis engine does not make the selected conversational model local.
+
+The verified stock-Web UI behavior is one voice control for an empty draft, Send while text is present, and the voice control again after the draft is cleared. This keyless verification did not make a provider call.
+
+To remove the bundle:
 
 ```sh
 dsh plugin --profile web remove @voicemesh/dsh-voice
 ```
 
-Installing alongside an existing voice integration must not activate two microphones or duplicate routes.
+Restart the profile after installing or removing a candidate. Do not install it alongside another voice integration that can add a second microphone control or duplicate routes.
 
-## Development and distribution
+## Data handling
 
-Provider keys stay in the Harness credential service; the browser receives configuration status, not the key. Selected cloud routes send audio or text to their provider. Local speech recognition and synthesis do not make the selected conversational model local. Realtime diagnostic recording is disabled by default. Voice previews may be cached by the app; this beta does not promise a cache-retention period.
+Provider keys are stored through the Harness credential service; the browser receives credential status, not the key. Cloud routes send the audio or text needed for the selected provider. Realtime diagnostic recording is disabled by default. Voice previews can be cached by the app; this beta makes no cache-retention promise.
 
-See [license](LICENSE) and [notices](NOTICE).
+VoiceMesh dispatches the latest spoken request to the coding Session. GPT-Live orchestration and transcript context stay in its provider configuration rather than becoming a coding-Session user message. When transcript history is enabled, VoiceMesh renders spoken transcripts and a coding dispatch also appears as a Harness user message.
 
-Do not submit API keys, raw conversation logs, or private project content with bug reports. Include the plugin version, Harness version, operating system, browser, selected provider, and a redacted error message.
+Do not include API keys, raw conversation logs, or private project content in bug reports. Include the VoiceMesh version, Harness version, operating system, browser, selected provider, and a redacted error message.
+
+## Known limits
+
+- The latest `0.1.0-beta.1` tarball passed a bounded archive scan and fresh keyless stock-Web install, setup-route, restart, and removal checks. Credentialed live voice, interruption, standby, and persisted history remain unverified for that exact tarball.
+- The reported Desktop live test does not independently verify interruption, standby, persisted history, or removal and restart behavior.
+- Public npm publication remains blocked by npm-scope authorization and the exact-tarball live voice check. The generated license inventory covers the known bundled dependencies; its completeness has been checked against the package's source markers and direct dependencies.
+
+See [license](LICENSE) and [notices](NOTICE). Composer attribution is retained in `LICENSE-COMPOSER`.
 
 ## Author
 
-Maintained by [Hopeton Palmer](https://github.com/hopeton2). Built on DeepSeek Harness and VoiceMesh Composer. Upstream attribution is retained in `LICENSE`.
+Maintained by [Hopeton Palmer](https://github.com/hopeton2). Built on DeepSeek Harness and VoiceMesh Composer.

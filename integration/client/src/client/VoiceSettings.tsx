@@ -19,6 +19,7 @@ import { CredentialField } from './CredentialField.tsx'
 import { ConnectionSettings } from './ConnectionSettings.tsx'
 import { VoicePicker } from './VoicePicker.tsx'
 import type { VoiceCatalogActions, VoiceSelection } from './voice-catalog.ts'
+import shell from './VoiceSettingsShell.module.css'
 
 /** The injected face of the setup page (assembled in apply). */
 export interface VoiceSettingsInjected extends VoiceCatalogActions {
@@ -510,7 +511,7 @@ export function VoiceSettings({
     onApply={() => saveKey('fish', fishKey, () => setFishKey(''))} />
 
   return (
-    <div className={css.page}>
+    <div className={`${css.page} ${shell.shell}`}>
       {picker !== null && <VoicePicker key={`${pickerSelection.provider}:${pickerSelection.mode}:${pickerSelection.model}`}
         compact={quickPicker} selection={pickerSelection} selectedVoice={picker === 'sts' ? selectedSts.voice
           : ttsVoice}

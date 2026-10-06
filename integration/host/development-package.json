@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-voice-host",
-  "description": "Host-side STT route: mounts /api/voice/stt, transcribes posted PCM16 with Deepgram Flux, and returns a transcript.",
+  "description": "Connects speech recognition, conversational models, and voice playback for live voice conversations.",
   "version": "0.1.2-alpha.4",
   "publishConfig": {
     "access": "public"

@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-voice-client",
-  "description": "Voice surface: a mic control in the conversation.input.dock, wired to the standalone dsh-voice loop.",
+  "description": "Adds voice controls to chat.",
   "version": "0.1.7-alpha.2",
   "publishConfig": {
     "access": "public"

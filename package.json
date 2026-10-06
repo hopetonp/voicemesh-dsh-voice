@@ -1,9 +1,10 @@
 {
   "name": "@voicemesh/dsh-voice",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-beta.1",
   "private": true,
   "type": "module",
-  "description": "VoiceMesh Composer integration for DeepSeek Harness",
+  "icon": "./icon.svg",
+  "description": "Talk with your coding agent using live speech; first use may require installing local speech models or configuring a supported cloud provider.",
   "scripts": {
     "stage": "node scripts/stage-release.mjs",
     "check": "node scripts/check-source.mjs",

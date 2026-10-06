@@ -1,45 +1,43 @@
-# Release preparation
+# Releasing VoiceMesh
 
-## Current evidence
+`0.1.0-beta.1` is a private candidate. It is not approved for npm publication.
 
-The integration operates in the development Harness checkout. Its host and client currently depend on a private local Composer artifact and a local harness-policy package. This is not proof of installation on a stock Harness release.
+## Candidate evidence
 
-## Prepare an artifact
+`docs/RELEASE_EVIDENCE.md` is the release record. It verifies the stock Web plugin UI on published `@deepseek-ai/dsh@0.2.0-rc.2`: enabling VoiceMesh with incomplete configuration shows **Finish voice setup**; the bundle detail opens the existing Voice settings form; and the composer swaps between one voice control for an empty draft and Send for typed text. That check used no provider key or paid call.
 
-Build the host, client, harness-policy, and Composer first. Run the stage command with the Harness checkout path:
+An official Desktop build was also checked for the client control, and a user later reported live voice working after adding provider keys. That report is useful product evidence, but it does not complete an isolated credentialed smoke of the candidate tarball.
+
+The latest tarball passed a bounded archive scan and keyless fresh stock-Web UI, setup-route, restart, and removal checks. `docs/RELEASE_EVIDENCE.md` names its exact path and SHA-256. Do not carry forward live-voice evidence from an earlier archive as evidence for this candidate.
+
+## Prepare a candidate
+
+Build the required components, then stage against the intended Harness checkout:
 
 ```sh
 npm run stage -- /path/to/deepseek-harness
 ```
 
-The script copies only declared runtime entries into an ignored `.release/` directory, excluding source maps and Composer source. It writes package manifests and a configuration patch for review. Staging is not publication and does not claim that dependencies or licenses are release-ready.
+Package only after reviewing the staged result:
 
-## Required before distribution
+```sh
+npm run package -- /path/to/built/harness
+```
 
-1. Confirm the GitHub owner and package name.
-2. Composer MIT distribution is confirmed; collect and retain third-party license texts.
-3. Replace local dependency references with packaged dependencies; preserve Harness shared service identities.
-4. Complete a single installable bundle and verify its activation against a clean supported Harness version, including the browser module loader.
-5. Verify install, start, provider configuration, speech, interruption, standby, history, and removal from the packed artifact.
-6. Verify the artifact contains no credentials, developer paths, source maps, private Composer source, or conversation logs.
-7. Record exact component versions and artifact hashes in the release, and publish the prebuilt tarball.
+Staging and packaging create private review artifacts. They do not authorize publication.
 
-Do not publish `.release/`, private Composer artifacts, or development manifests as an npm release directly. The root package remains private until packaging validation is complete.
+## Required release review
 
-## Private artifact validation — 2026-09-14
+For the exact tarball to be released, record its path, SHA-256, manifest version, component versions, and source identities in `docs/RELEASE_EVIDENCE.md`. Then, in a fresh isolated `DSH_HOME` with the supported published Harness version:
 
-`npm run package -- /path/to/built/harness` builds a single private validation tarball. The host bundle includes Composer, harness-policy, and non-Harness runtime dependencies; the client contains its compiled loader factory. Harness runtime imports remain shared with the installation. No separate Composer installation is needed.
+1. Install with `dsh plugin --profile web add <tarball>`, enable it, and verify the plugin UI, setup flow, and composer control.
+2. Configure only dedicated, revocable test credentials and verify a live voice turn, interruption, standby, transcript history, restart, and removal with `dsh plugin --profile web remove @voicemesh/dsh-voice`.
+3. Run the keyless setup probe to verify provider-status routes, local-model discovery, and unauthenticated rejection without writing credentials.
+4. Review the exact archive and served VoiceMesh contribution for credentials, private keys, conversation logs, developer paths, source maps, source/test files, and private Composer source. Compare composite-module source-map results with a stock-Harness baseline before attributing them to VoiceMesh.
+5. Confirm the archive retains the required licenses and third-party notices, and verify the npm scope owner can publish.
 
-The archive installed using `dsh plugin --profile web add <archive>` on npm Harness 0.1.5-rc.1 in an isolated home. `--dump-config` included both voice rows. The web app started on a separate port, and browser inspection confirmed the Voice settings panel loaded. The archive contains ten files, with no Composer source or source maps.
+Use a browser microphone grant for the live smoke and record the Harness version, OS, browser, selected providers, and results. Do not use a shared credential store or ordinary user keys.
 
-This validates packaging, activation, and initial UI loading. Provider credentials were not configured in the isolated profile, so live speech, interruption, standby, and transcript persistence are not yet validated from the archive. Local speech models and native runtime installation also remain outside this packaging smoke test. Composer MIT distribution is confirmed; third-party license retention remains a prerequisite for distribution.
+## Publication blockers
 
-### First-run setup
-
-When VoiceMesh is enabled with incomplete saved selections, its browser client displays a **Finish voice setup** prompt. **Go to setup** opens the VoiceMesh bundle page in **Plugins**, where the user explicitly chooses local or cloud engines and installs any local model packs they want.
-
-### Setup-route activation
-
-Harness 0.1.5-rc.1 requires `webServer` in the Connection row's injected services for plugin RPC channels. The bundle supplies `inject: [webRuntime, webServer]` on that row while retaining its existing configuration. Without this declaration the plugin UI loads, but setup calls such as `/voice-local/models` receive HTTP 405. Initial page rendering alone is not a sufficient setup check.
-
-The bundle also sets the Deepgram credential reference to `DEEPGRAM_API_KEY`; an empty reference prevents Deepgram setup. `node scripts/check-setup.mjs <authenticated-local-launch-url>` verifies the installed archive's six provider credential-status operations, local model discovery, and unauthenticated rejection without writing provider credentials. These checks passed after reinstalling the corrected archive and restarting the isolated Harness process on 2026-09-14. Temporary diagnostic changes were removed; no Harness source change is part of the fix.
+Do not publish while the exact candidate lacks a credentialed live-voice smoke or npm-scope authorization. Its bounded archive scan, generated third-party license inventory, and keyless stock-Web lifecycle checks are recorded, but none establishes live-provider behavior. A user-reported Desktop test of another archive does not establish it either.

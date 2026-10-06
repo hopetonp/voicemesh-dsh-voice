@@ -1,0 +1,11 @@
+/* Plugin-detail frame kept separate from the stable settings module so a
+ * profile update retains the existing card class map and its injected style. */
+.shell {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  padding: 16px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 10px;
+  background: transparent;
+}
