@@ -4,8 +4,6 @@ import type {} from '@deepseek-ai/dsh-api-session-controller'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { createMessage, createToolResultMessage, ToolCallId, type Message, type GenerateOptions } from '@deepseek-ai/dsh-llm'
 import { z } from 'zod'
-import { resolveAdapterOptions, type Config as DeepSeekConfig } from '@deepseek-ai/dsh-llm-deepseek'
-import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import { readVoiceCredential, conversationalBase } from './voice-credentials.ts'
 import { randomUUID } from 'node:crypto'
 import { brandString } from '@deepseek-ai/dsh-brand'
@@ -76,16 +74,16 @@ export async function requestVoiceModel(ctx: Context, input: VoiceModelRequest, 
       content: [{ type: 'text', text: message.content ?? '' }], isError: false,
     })
     const replay = message.tool_calls?.[0]?.extra_content
-    return createMessage({ role: message.role,
-      source: message.role === 'assistant'
-        ? { kind: 'model', provider: replay?.voiceProvider ?? selected.provider, model: replay?.voiceModel ?? selected.model,
-          ...(replay === undefined ? {} : { replayState: replay.voiceReplay }) }
-        : { kind: 'user' },
-      content: [
-        ...(message.content ? [{ type: 'text' as const, text: message.content }] : []),
-        ...(message.tool_calls ?? []).map(call => ({ type: 'tool-call' as const, id: ToolCallId(call.id), name: call.function.name, arguments: call.function.arguments })),
-      ],
-    })
+    const content = [
+      ...(message.content ? [{ type: 'text' as const, text: message.content }] : []),
+      ...(message.tool_calls ?? []).map(call => ({ type: 'tool-call' as const, id: ToolCallId(call.id), name: call.function.name, arguments: call.function.arguments })),
+    ]
+    if (message.role === 'assistant') {
+      return createMessage({ role: 'assistant', content,
+        source: { kind: 'model', provider: replay?.voiceProvider ?? selected.provider, model: replay?.voiceModel ?? selected.model,
+          ...(replay === undefined ? {} : { replayState: replay.voiceReplay }) } })
+    }
+    return createMessage({ role: 'user', content, source: { kind: 'user' } })
   })
   const options: GenerateOptions = {
     provider: selected.provider, model: selected.model, system,
@@ -139,28 +137,18 @@ async function requestCustomModel(ctx: Context, input: VoiceModelRequest, signal
   return send(false)
 }
 
-/** Expand an installed route through its discovery service or configured DeepSeek endpoint. */
+/** Expand an installed route through its discovery service. */
 async function discoverVoiceModels(ctx: Context, provider: string, signal: AbortSignal): Promise<{ id: string; name: string }[]> {
   const entry = ctx.llm.listConfigurableProviders().find(item => item.provider === provider)
   if (!entry) return []
-  if (entry.settingsNs !== 'llm-deepseek') {
-    try {
-      return (await ctx.llm.discoverModels(entry.settingsNs, { provider }, signal)).map(model => (
-        { id: model.id, name: model.name ?? model.id }))
-    } catch (error) {
-      // Installed adapters without endpoint discovery retain their registered catalog.
-      if (error instanceof Error && 'code' in error && error.code === 'NO_DISCOVERY') return []
-      throw error
-    }
+  try {
+    return (await ctx.llm.discoverModels(entry.settingsNs, { provider }, signal)).map(model => (
+      { id: model.id, name: model.name ?? model.id }))
+  } catch (error) {
+    // Installed adapters without endpoint discovery retain their registered catalog.
+    if (error instanceof Error && 'code' in error && error.code === 'NO_DISCOVERY') return []
+    throw error
   }
-  const settings = resolveAdapterOptions(ctx.get('settings')?.get('llm-deepseek') as DeepSeekConfig, launchEnvironmentOf(ctx))
-  const credential = await ctx.credentials.resolve(settings.apiKeyEnv)
-  const response = await fetch(conversationalBase(settings.baseURL) + '/models', {
-    headers: credential ? { Authorization: 'Bearer ' + credential.value } : {}, redirect: 'error', signal,
-  })
-  if (!response.ok) throw new Error('Conversational model discovery failed')
-  const result = z.object({ data: z.array(z.object({ id: z.string().min(1) })) }).parse(await response.json())
-  return result.data.map(model => ({ id: model.id, name: model.id }))
 }
 
 /** Project an independent provider call into the voice client's chat-completions protocol. */

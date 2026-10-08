@@ -13,7 +13,52 @@ const output = join(root, '.release', 'package-' + Date.now());
 const modules = join(output, 'node_modules');
 await mkdir(modules, { recursive: true });
 const clientSource = join(root, 'integration/client');
+const hostSource = join(root, 'integration/host');
+const composer = resolve(root, '../voicemesh-composer');
 const clientBuild = join(output, 'client-build');
+const hostBuild = join(output, 'host-build');
+
+/**
+ * Link the selected Harness package dependencies into an isolated build tree.
+ *
+ * Each link targets the original resolved package, so this never writes the
+ * Harness checkout. Composer is deliberately overlaid separately: its current
+ * compiled output is the release input, rather than the tarball installed by
+ * the selected Harness checkout.
+ */
+async function linkBuildDependencies(source, target) {
+  await mkdir(target, { recursive: true });
+  for (const entry of await readdir(source, { withFileTypes: true })) {
+    const sourceEntry = join(source, entry.name);
+    const targetEntry = join(target, entry.name);
+    if (entry.name.startsWith('@')) {
+      await mkdir(targetEntry, { recursive: true });
+      for (const nested of await readdir(sourceEntry, { withFileTypes: true })) {
+        await symlink(await realpath(join(sourceEntry, nested.name)), join(targetEntry, nested.name));
+      }
+    } else {
+      await symlink(await realpath(sourceEntry), targetEntry);
+    }
+  }
+}
+
+/** Stage one wrapper source tree with Harness dependencies and current Composer. */
+async function stageWrapperSource(source, target, harnessModules, manifestFile) {
+  await cp(join(source, 'src'), join(target, 'src'), { recursive: true });
+  await cp(join(source, manifestFile), join(target, 'package.json'));
+  await linkBuildDependencies(harnessModules, join(target, 'node_modules'));
+  // The Harness base TypeScript configuration names Node's ambient types, but
+  // voice-host does not list them as a direct dependency. Retain the selected
+  // checkout as the toolchain source without changing it.
+  await mkdir(join(target, 'node_modules/@types'), { recursive: true });
+  await symlink(await realpath(join(harness, 'node_modules/@types/node')), join(target, 'node_modules/@types/node'));
+  // These source imports are present in the standalone wrapper but not in the
+  // selected Harness voice-host's direct dependency links.
+  await symlink(await realpath(join(harness, 'packages/credentials/credentials')), join(target, 'node_modules/@deepseek-ai/dsh-credentials'));
+  await symlink(await realpath(join(harness, 'vendor/schemastery')), join(target, 'node_modules/@deepseek-ai/schemastery'));
+  await rm(join(target, 'node_modules/@voicemesh/composer'), { force: true });
+  await symlink(composer, join(target, 'node_modules/@voicemesh/composer'));
+}
 
 /** Collect package license files for dependencies preserved in RollDown source markers. */
 async function writeBundledDependencyLicenses(outputFile, roots, dependencyRoots) {
@@ -32,7 +77,22 @@ async function writeBundledDependencyLicenses(outputFile, roots, dependencyRoots
       for (const match of text.matchAll(/node_modules\/\.pnpm\/([^/]+)\/node_modules\/((?:@[^/]+\/)?[^/]+)/g)) {
         const [store, name] = [match[1], match[2]];
         if (name === '@voicemesh/composer' || name.startsWith('@deepseek-ai/') || name.startsWith('@dsh-voice/')) continue;
-        const directory = join(harness, 'node_modules/.pnpm', store, 'node_modules', name);
+        let directory;
+        // RollDown preserves the source store path in its marker, which may be
+        // newer than the selected Harness store. Resolve the actual staged
+        // source package first so Composer's current dependency licenses are
+        // collected from the same input that was bundled.
+        for (const dependencyRoot of dependencyRoots) {
+          try {
+            directory = await realpath(join(dependencyRoot, 'node_modules', name));
+            break;
+          } catch (error) {
+            // The dependency is not a direct child of this staged input; the
+            // next input or Harness store may still supply its license.
+            if (error.code !== 'ENOENT') throw error;
+          }
+        }
+        directory ??= join(harness, 'node_modules/.pnpm', store, 'node_modules', name);
         try { await addPackage(directory, `${store}/${name}`); }
         catch (error) {
           // This exact Composer build references 2.1.2 while the selected Harness
@@ -73,20 +133,15 @@ async function writeBundledDependencyLicenses(outputFile, roots, dependencyRoots
     sections.push(`## ${name} ${version}\n\n${texts.join('\n\n').trim()}`);
   }
   if (sections.length === 0) throw new Error('No bundled third-party dependency source markers were found.');
-  await writeFile(outputFile, `# Third-party license texts\n\nThis file is generated from the selected Harness checkout's RollDown source markers.\n\n${sections.join('\n\n')}\n`);
+  await writeFile(outputFile, `# Third-party license texts\n\nThis file is generated from the staged VoiceMesh and Harness build inputs' RollDown source markers.\n\n${sections.join('\n\n')}\n`);
   return packages.size;
 }
 
-// The published browser factory is owned by VoiceMesh. Stage its source under
-// this package, then use the selected Harness checkout only for its installed
-// build runtime and workspace dependencies. Nothing under that checkout is
-// written during this process.
-await cp(join(clientSource, 'src'), join(clientBuild, 'src'), { recursive: true });
-await cp(join(clientSource, 'package.json'), join(clientBuild, 'package.json'));
-await symlink(
-  join(harness, 'packages/client/voice-client/node_modules'),
-  join(clientBuild, 'node_modules'),
-);
+// Both wrapper implementations are release inputs. The selected Harness
+// checkout supplies only the toolchain and its remaining workspace packages;
+// Composer always resolves to the current compiled VoiceMesh source.
+await stageWrapperSource(clientSource, clientBuild, join(harness, 'packages/client/voice-client/node_modules'), 'package.json');
+await stageWrapperSource(hostSource, hostBuild, join(harness, 'packages/host/voice-host/node_modules'), 'development-package.json');
 await writeFile(join(clientBuild, 'tsconfig.json'), JSON.stringify({
   extends: join(harness, 'tsconfig.base.client.json'),
   compilerOptions: {
@@ -121,15 +176,31 @@ execFileSync(join(harness, 'node_modules/.bin/tsdown'), ['--config', 'tsdown.con
 if (!(await readFile(join(clientBuild, 'lib/client.js'), 'utf8')).includes('voicemesh-integration-client')) {
   throw new Error('VoiceMesh client build did not retain its integration-client source marker.');
 }
+await writeFile(join(hostBuild, 'tsconfig.json'), JSON.stringify({
+  extends: join(harness, 'tsconfig.base.json'),
+  compilerOptions: {
+    baseUrl: '.',
+    paths: {},
+    rootDir: 'src',
+    outDir: 'lib',
+    composite: false,
+    incremental: false,
+    ignoreDeprecations: '6.0',
+  },
+  include: ['src'],
+}, null, 2) + '\n');
+execFileSync(join(harness, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.json'], {
+  cwd: hostBuild, stdio: 'inherit',
+});
 const components = [
-  ['@deepseek-ai/dsh-voice-host', 'packages/host/voice-host'],
+  ['@deepseek-ai/dsh-voice-host', hostBuild],
   ['@deepseek-ai/dsh-voice-client', clientBuild],
 ];
 const { build } = await import(pathToFileURL(join(harness, 'node_modules/tsdown/dist/index.mjs')).href);
 const provenance = [];
 let clientDsh;
 for (const [name, relative] of components) {
-  const source = name.endsWith('-client') ? relative : join(harness, relative), target = join(modules, name);
+  const source = relative, target = join(modules, name);
   const original = JSON.parse(await readFile(join(source, 'package.json'), 'utf8'));
   await mkdir(join(target, 'lib'), { recursive: true });
   if (name.endsWith('-host')) {
@@ -209,12 +280,13 @@ await writeFile(join(output, 'lib/client.js'), clientBundle.replace(
   'id: "@deepseek-ai/dsh-voice-client"', 'id: "@voicemesh/dsh-voice"',
 ));
 await writeBundledDependencyLicenses(join(output, 'THIRD_PARTY_LICENSES'), [
-  join(harness, 'packages/host/voice-host/lib'),
+  join(hostBuild, 'lib'),
   join(clientBuild, 'lib'),
-  join(harness, 'packages/host/voice-host/node_modules/@voicemesh/composer/lib'),
+  join(composer, 'lib'),
 ], [
-  join(harness, 'packages/host/voice-host'),
-  join(harness, 'packages/host/voice-host/node_modules/@voicemesh/composer'),
+  hostBuild,
+  clientBuild,
+  composer,
 ]);
 const packaged = {
   name: manifest.name, version: manifest.version, ...(publicRelease ? { publishConfig: { access: 'public' } } : { private: true }), type: 'module',
@@ -248,10 +320,10 @@ await writeFile(join(output, 'cordis.patch.yml'), `# Connection RPC registration
         lastOutputPath: /api/voice/last-output
         deepgramKey: DEEPGRAM_API_KEY
         maxBodyBytes: 33554432
-    # The bundled client package has its own dsh.client declaration and display
-    # metadata. The wrapper root remains the installable bundle and host owner.
+    # Mount the wrapper root: a profile resolver can address this installed package,
+    # while the bundled implementation package remains private to the wrapper.
     - id: voice-client
-      name: '@deepseek-ai/dsh-voice-client'
+      name: '@voicemesh/dsh-voice'
       config:
         path: /api/voice/stt
         sttStreamPath: /api/voice/stt/stream

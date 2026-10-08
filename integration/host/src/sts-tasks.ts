@@ -148,8 +148,9 @@ export class StsTasks {
         const pending = [...found.agent.inbox.nextTurn, ...found.agent.inbox.nextStep].find(message =>
           message.source.kind === 'user' && 'rpcId' in message.source && this.owns(task.requestId, message.source.rpcId))
         if (pending === undefined) throw new Error('Queued voice task is no longer available')
+        const queuedText = pending.content.map(part => part.type === 'text' ? part.text : '').join('')
         this.controller.updateQueue({ sessionId: this.session.id, itemId: pending.id, action: { kind: 'edit', content: [
-          ...pending.content, { type: 'text', text: instruction },
+          { type: 'text', text: queuedText + instruction },
         ] } })
       } else if (current.status === 'running') {
         // Text-only steering must share the ownership check's synchronous admission point.
