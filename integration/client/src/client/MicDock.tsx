@@ -12,10 +12,12 @@
  * is live the button carries no label of its own.
  */
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
-import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
+import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { phaseColor } from './state.ts'
 import { Glyph } from './glyphs.tsx'
 import type { MicDockActions } from './slots.ts'
+import type { VoiceCredentialSlot } from './voice-credentials.ts'
 import css from './MicDock.module.css'
 
 /**
@@ -28,19 +30,18 @@ import css from './MicDock.module.css'
 const LIVE_FILL = 'var(--dsw-alias-button-info-fill)'
 const LIVE_HOVER = 'color-mix(in srgb, var(--dsw-alias-button-info-fill) 80%, white)'
 
-/** Full props of the composer entry: session share + injected verbs + the locale seat. */
+/** Full props shared by the dock and overlay entries: session identity, global selectors, verbs, and locale. */
 export type MicDockProps =
-  // The overlay's runtime props carry the session for the primary-action replacement and the
-  // headless dock entry that stops a session's voice.
-  Pick<import('@deepseek-ai/dsh-client-ui-slots').PropsRuntime<'conversation.input.dock'>, 'sessionId'>
+  Pick<PropsRuntime<'conversation.input.dock'>, 'sessionId'>
   & MicDockActions
   & PropsLocale<'voice'>
 
 /** The voice control: a round button in the composer's primary-action position. */
-export function MicDock({ sessionId, onToggle, onStop, sources, t }: MicDockProps) {
+export function MicDock({ sessionId, onToggle, onStop, missingCredentials, onOpenSetup, sources, t }: MicDockProps) {
   const voice = useSyncExternalStore(sources.voice.subscribe, sources.voice.getSnapshot)
   const config = useSyncExternalStore(sources.config.subscribe, sources.config.getSnapshot)
   const [busy, setBusy] = useState(false)
+  const [missingKeys, setMissingKeys] = useState<readonly VoiceCredentialSlot[]>([])
 
   const phase = voice.phase
   const error = voice.error
@@ -72,6 +73,18 @@ export function MicDock({ sessionId, onToggle, onStop, sources, t }: MicDockProp
   // button shows no status label — the tool row already says what is happening.
   const hint = active ? null : error !== null ? `${t('mic.err')}: ${error}` : t('status.idle')
 
+  const keyName = (slot: VoiceCredentialSlot): string => {
+    switch (slot) {
+      case 'deepgram': return t('key.label')
+      case 'xai':
+      case 'xai-sts': return t('settings.xaiCredential')
+      case 'fish': return t('settings.fishCredential')
+      case 'gemini-sts': return t('settings.geminiCredential')
+      case 'openai-sts': return t('settings.openaiCredential')
+      case 'conversational': return t('conv.key')
+    }
+  }
+
 
   const onClick = (): void => {
     // The cross means stop in every live state, standby included; the tool row
@@ -80,6 +93,11 @@ export function MicDock({ sessionId, onToggle, onStop, sources, t }: MicDockProp
       onStop(sessionId)
     } else {
       if (busy) return
+      const missing = missingCredentials()
+      if (missing.length !== 0) {
+        setMissingKeys(missing)
+        return
+      }
       setBusy(true)
       Promise.resolve(onToggle(sessionId)).finally(() => setBusy(false))
     }
@@ -99,6 +117,13 @@ export function MicDock({ sessionId, onToggle, onStop, sources, t }: MicDockProp
       </span>
     </button>
     {hint === null ? null : <span className={css.hint} role="tooltip">{hint}</span>}
+    <Modal open={missingKeys.length !== 0} title={t('setup.title')} closeLabel={t('setup.later')}
+      onClose={() => setMissingKeys([])} footer={<>
+        <Button variant="ghost" onClick={() => setMissingKeys([])}>{t('setup.later')}</Button>
+        <Button variant="primary" onClick={() => { setMissingKeys([]); onOpenSetup() }}>{t('setup.open')}</Button>
+      </>}>
+      <p>{t('setup.missingKey')} {missingKeys.map(keyName).join(', ')}</p>
+    </Modal>
   </div>
 }
 

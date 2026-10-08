@@ -60,7 +60,10 @@ export interface VoiceSettingsInjected extends VoiceCatalogActions {
 export type VoiceSettingsProps =
   PropsRuntime<'plugins.bundle.config'>
   & VoiceSettingsInjected
-  & PropsLocale<'voice'>
+  & PropsLocale<'voice'> & {
+    /** Open the Speech & Voice card when the voice button sends a user here. */
+    openSpeech?: boolean
+  }
 
 /** The test phrase spoken by the read-back test. */
 export const READ_BACK_TEST = 'This is a voice test. Can you hear me?'
@@ -104,6 +107,7 @@ export function VoiceSettings({
   probeConversational,
   listConversationalModels,
   testTts,
+  openSpeech = false,
   t,
 }: VoiceSettingsProps) {
   const voice = useSyncExternalStore(sources.voice.subscribe, sources.voice.getSnapshot)
@@ -326,10 +330,10 @@ export function VoiceSettings({
 
   const [credentialBusy, setCredentialBusy] = useState(false)
   const [credentialError, setCredentialError] = useState(false)
-  const saveKey = async (slot: VoiceCredentialSlot, value: string, clear: () => void): Promise<void> => {
+  const saveKey = async (slot: VoiceCredentialSlot, value: string, clear: () => void, onSaved?: () => void): Promise<void> => {
     setCredentialBusy(true)
     setCredentialError(false)
-    try { await saveCredential(slot, value.trim()); clear() }
+    try { await saveCredential(slot, value.trim()); clear(); onSaved?.() }
     catch { setCredentialError(true) }
     finally { setCredentialBusy(false) }
   }
@@ -617,7 +621,7 @@ export function VoiceSettings({
       </VoiceCard>
 
       {credentialError && <p role="alert">{t('key.hostError')}</p>}
-      <VoiceCard t={t} title={t('speech.title')} desc={`${activeProvider} · ${t(activeMode === 'sts' ? 'speech.sts' : 'speech.pipeline')}`}
+      <VoiceCard t={t} initiallyOpen={openSpeech} title={t('speech.title')} desc={`${activeProvider} · ${t(activeMode === 'sts' ? 'speech.sts' : 'speech.pipeline')}`}
         quickAction={activeMode === 'sts' || config.ttsEngine !== '' ? <SelectedVoiceControl label={activeMode === 'tts' && (config.ttsEngine === 'kokoro' || config.ttsEngine === 'fish') && localVoiceLabel ? localVoiceLabel : activeVoice} key={`${activeMode}:${activeProvider}:${activeVoice}:${selectedSts.model}`}
           selection={activeMode === 'sts' ? { provider: selectedSts.provider, mode: 'sts', model: selectedSts.model }
             : { provider: ttsProvider, mode: 'tts', model: pipelineModel(config, 'tts') }}
@@ -636,11 +640,11 @@ export function VoiceSettings({
           <SelectField id="voice-sts-provider" label={t('sts.provider')} value={config.stsProvider}
             options={(['xai', 'gemini', 'openai-live', 'openai'] as const).map(value => ({ value, label: t(`sts.${value}`) }))}
             onChange={value => actions.setStsProvider(value)} />
-          <ConnectionSettings t={t}
+          <ConnectionSettings t={t} error={credentialError}
             indicator={selectedSts.credential ? <span className={css.vadStatusOk} role="img" aria-label={t('key.saved')}>✓</span> : undefined}>
-            <CredentialField t={t} id="voice-sts-key" label={t('sts.key')}
+            {(onSaved) => <CredentialField t={t} id="voice-sts-key" label={t('sts.key')} applyLabel={t('key.applyAndClose')}
               configured={Boolean(selectedSts.credential)} value={stsCredentialInput} onChange={setStsCredentialInput}
-              disabled={credentialBusy} onApply={() => saveKey(config.stsProvider === 'openai-live' ? 'openai-sts' : `${config.stsProvider}-sts`, stsCredentialInput, () => { setStsCredentialInput(''); setModelsRefresh(value => value + 1) })} />
+              disabled={credentialBusy} onApply={() => saveKey(config.stsProvider === 'openai-live' ? 'openai-sts' : `${config.stsProvider}-sts`, stsCredentialInput, () => { setStsCredentialInput(''); setModelsRefresh(value => value + 1) }, onSaved)} />}
           </ConnectionSettings>
           <div className={css.realtimeSelectionRow}>
             <div className={css.realtimeModel}>
@@ -775,14 +779,14 @@ export function VoiceSettings({
                 value={customPreset?.id ?? 'manual'}
                 options={[...CUSTOM_CONVERSATIONAL_ENDPOINTS.map(item => ({ value: item.id, label: item.label })), { value: 'manual', label: t('conv.manual') }]}
                 onChange={selectCustomPreset} />
-              <ConnectionSettings t={t}
+              <ConnectionSettings t={t} error={credentialError}
                 indicator={config.conversationalCredential ? <span className={css.vadStatusOk} role="img" aria-label={t('key.saved')}>✓</span> : undefined}>
-                <TextField id="voice-custom-url" label={t('conv.url')} value={config.conversationalBaseUrl} onChange={selectCustomUrl} />
-                <CredentialField t={t} id="voice-custom-key" label={t('conv.key')}
-                  configured={Boolean(config.conversationalCredential)} value={customKey}
-                  onChange={(value) => { setCustomKey(value); setConvResult(null) }}
-                  disabled={credentialBusy || !config.conversationalBaseUrl.trim()}
-                  onApply={() => saveKey('conversational', customKey, () => { setCustomKey(''); setModelsRefresh(value => value + 1) })} />
+                {(onSaved) => <><TextField id="voice-custom-url" label={t('conv.url')} value={config.conversationalBaseUrl} onChange={selectCustomUrl} />
+                  <CredentialField t={t} id="voice-custom-key" label={t('conv.key')} applyLabel={t('key.applyAndClose')}
+                    configured={Boolean(config.conversationalCredential)} value={customKey}
+                    onChange={(value) => { setCustomKey(value); setConvResult(null) }}
+                    disabled={credentialBusy || !config.conversationalBaseUrl.trim()}
+                    onApply={() => saveKey('conversational', customKey, () => { setCustomKey(''); setModelsRefresh(value => value + 1) }, onSaved)} /></>}
               </ConnectionSettings>
             </> : <>
               <SelectField id="voice-conversational-provider" label={t('conv.provider')}
@@ -873,18 +877,18 @@ function VoiceCard({
   title,
   desc,
   children,
-  alwaysOpen = false,
+  initiallyOpen = false,
   quickAction,
   t,
 }: {
   title: string
   desc: string
   children: ReactNode
-  /** Whether the body is always visible (used for read-only status rows). */
-  alwaysOpen?: boolean
+  /** Whether the card body starts expanded. */
+  initiallyOpen?: boolean
   quickAction?: ReactNode
 } & PropsLocale<'voice'>): JSX.Element {
-  const [open, setOpen] = useState(alwaysOpen)
+  const [open, setOpen] = useState(initiallyOpen)
   return (
     <section className={`${css.card}${open ? ` ${css.cardOpen}` : ''}`}>
       <div className={`${css.cardTop}${quickAction === undefined ? '' : ` ${css.cardTopWithVoice}`}`}>
@@ -903,7 +907,7 @@ function VoiceCard({
         </button>
         {quickAction}
       </div>
-      {open || alwaysOpen ? <div className={css.cardBody}>{children}</div> : null}
+      {open ? <div className={css.cardBody}>{children}</div> : null}
     </section>
   )
 }

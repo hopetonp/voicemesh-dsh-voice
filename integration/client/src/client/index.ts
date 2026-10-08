@@ -27,8 +27,9 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 // Type-only: pulls the renderer-owned slots service (ctx.slots).
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 // Type-only: pulls the bundle configuration and activation slots into this program.
-import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import { resolveStsSettings } from './sts-settings.ts'
+import { missingVoiceCredentials } from './voice-credential-readiness.ts'
 import { parseStsModelListing, type StsModelListing } from './sts-model.ts'
 import { voiceTranscriptDefinition } from './voice-transcript.ts'
 import { VoiceTranscriptNodeView } from './VoiceTranscriptNodeView.tsx'
@@ -109,7 +110,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 /** Dictionary namespace owned by this plugin. */
 const NS = 'voice'
 
-export const inject = ['slots', 'locale', 'remote', 'sessions']
+export const inject = ['slots', 'layout', 'locale', 'remote', 'sessions']
 
 /**
  * Client plugin body: the mic orb + the Voice setup page, wired to one loop.
@@ -372,10 +373,38 @@ export function apply(ctx: ClientContext): void {
     if (wakeSessionId === undefined) return
     return voiceActions(wakeSessionId).onToggle(wakeSessionId)
   }
+  let cancelSetupNavigation: (() => void) | undefined
+  let expandSpeechOnNextSettings = false
+  /** Open VoiceMesh's bundle detail after the public Plugins panel has rendered its cards. */
+  const openVoiceSetup = (): void => {
+    cancelSetupNavigation?.()
+    ctx.layout.selectPanel('plugins' as MainPanelId)
+    expandSpeechOnNextSettings = true
+    const openDetail = (): boolean => {
+      const card = document.querySelector<HTMLElement>('[data-plugin-package="@voicemesh/dsh-voice"]')
+      const button = card?.querySelector<HTMLButtonElement>('button')
+      if (button == null) return false
+      button.click()
+      return true
+    }
+    if (openDetail()) return
+    const observer = new MutationObserver(() => { if (openDetail()) cleanup() })
+    let timer: number | undefined
+    const cleanup = (): void => {
+      observer.disconnect()
+      if (timer !== undefined) window.clearTimeout(timer)
+      if (cancelSetupNavigation === cleanup) cancelSetupNavigation = undefined
+    }
+    observer.observe(document.body, { childList: true, subtree: true })
+    timer = window.setTimeout(() => { cleanup(); expandSpeechOnNextSettings = false }, 2_000)
+    cancelSetupNavigation = cleanup
+  }
   const voiceActions = (sessionId: SessionId): MicDockActions => {
     // Remembered so the wake phrase can act on the session the dock is showing.
     wakeSessionId = sessionId
     return {
+    missingCredentials: () => credentialStatusReady ? missingVoiceCredentials(cfg()) : [],
+    onOpenSetup: openVoiceSetup,
     onToggle: (id: SessionId) => {
       if (cfg().voiceMode !== 'sts' && (!cfg().conversationalProvider.trim() || !cfg().conversationalModel.trim())) {
         voice.setError(t('conv.required'))
@@ -523,8 +552,14 @@ export function apply(ctx: ClientContext): void {
         })
       },
   })
+  /** Pass the dock's one-shot expansion request to the normal Plugins settings page. */
+  const settingsPageInjected = (): VoiceSettingsInjected & { openSpeech: boolean } => {
+    const openSpeech = expandSpeechOnNextSettings
+    expandSpeechOnNextSettings = false
+    return { ...settingsInjected(), openSpeech }
+  }
   ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
-    name: 'plugins.bundle.config', key: '@voicemesh/dsh-voice', locale: NS, inject: settingsInjected,
+    name: 'plugins.bundle.config', key: '@voicemesh/dsh-voice', locale: NS, inject: settingsPageInjected,
   }, VoiceSettings))
   ctx.slots.inject('plugins.bundle.activation', () => ctx.slots.register({
     name: 'plugins.bundle.activation', key: '@voicemesh/dsh-voice', locale: NS,

@@ -5,6 +5,7 @@ import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots
 import { isLocalSttEngine, localSttEngine, normalizeVoiceConfig, pipelineModel, pipelineVoice, type VoiceConfig } from './config.ts'
 import { resolveStsSettings } from './sts-settings.ts'
 import type { LocalVoiceModel } from './voice-catalog.ts'
+import { missingVoiceCredentials } from './voice-credential-readiness.ts'
 
 /** Values shared with the existing setup form. */
 export interface VoiceSetupPromptInjected {
@@ -18,19 +19,6 @@ export interface VoiceSetupPromptInjected {
 
 /** Inputs provided by the activation slot and this plugin's existing setup services. */
 export type VoiceSetupPromptProps = PropsRuntime<'plugins.bundle.activation'> & PropsLocale<'voice'> & VoiceSetupPromptInjected
-
-/** Whether a cloud engine has the saved credential marker it requires. */
-function hasEngineCredential(config: VoiceConfig, engine: string): boolean {
-  switch (engine) {
-    case 'deepgram-flux':
-    case 'deepgram': return config.deepgramCredential === 'deepgram'
-    case 'grok': return config.xaiCredential === 'xai'
-    case 'fish': return config.fishCredential === 'fish'
-    case 'openai': return config.openaiStsCredential === 'openai-sts'
-    case 'gemini': return config.geminiStsCredential === 'gemini-sts'
-    default: return true
-  }
-}
 
 /** Whether selected local engines have the model material they need on this host. */
 function localEnginesReady(config: VoiceConfig, models: readonly LocalVoiceModel[]): boolean {
@@ -50,7 +38,7 @@ export function needsVoiceSetup(config: VoiceConfig, models: readonly LocalVoice
     return !credential || !model || !voice
   }
   if (!config.sttEngine || !config.ttsEngine || !config.conversationalProvider || !config.conversationalModel) return true
-  if (!hasEngineCredential(config, config.sttEngine) || !hasEngineCredential(config, config.ttsEngine)) return true
+  if (missingVoiceCredentials(config).length !== 0) return true
   if (config.conversationalProvider === 'custom' && (!config.conversationalBaseUrl || config.conversationalCredential !== 'conversational')) return true
   if ((config.sttEngine === 'openai' || config.sttEngine === 'gemini') && !pipelineModel(config, 'stt')) return true
   if ((config.ttsEngine === 'openai' || config.ttsEngine === 'gemini') && (!pipelineModel(config, 'tts') || !pipelineVoice(config))) return true

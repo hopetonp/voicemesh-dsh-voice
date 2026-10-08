@@ -112,8 +112,6 @@ export function VoicePicker({ selection, selectedVoice, favorites, onFavorites, 
   const languages = [...new Set([...voices.flatMap(voice => voice.languages), ...(activeLanguage ? [activeLanguage] : [])])].sort()
   const genders = [...new Set(voices.map(voice => voice.gender).filter(Boolean))].sort()
   const regions = [...new Set(voices.map(voice => voice.region).filter(Boolean))].sort()
-  const supplementalSource = catalog?.supplementalSourceUrl === undefined ? null
-    : <a href={catalog.supplementalSourceUrl} target="_blank" rel="noreferrer">{t('picker.flux')} · {t('picker.documentation')}</a>
   const query = search.trim().toLocaleLowerCase()
   const filtered = voices.filter(voice => (!onlyFavorites || favorites.includes(scope + voice.id))
     && (provider === 'fish' || language === '' || voice.languages.includes(language)) && (gender === '' || gender === voice.gender)
@@ -178,12 +176,7 @@ export function VoicePicker({ selection, selectedVoice, favorites, onFavorites, 
           </select>}
           <button type="button" disabled={loadState === 'loading'} onClick={() => setRefresh(value => value + 1)}>{t('picker.refresh')}</button>
         </div>
-        <div role="status">
-          {loadState === 'loading' ? t('picker.loading') : loadState === 'error' ? t('picker.unavailable') : catalog !== null && <>
-            {filtered.length} / {voices.length} · <a href={catalog.sourceUrl} target="_blank" rel="noreferrer">
-              {t(catalog.source === 'api' ? 'picker.api' : 'picker.documentation')}</a> · {new Date(catalog.fetchedAt).toLocaleTimeString()}{supplementalSource}
-          </>}
-        </div>
+        {loadState !== 'ready' && <div role="status">{t(loadState === 'loading' ? 'picker.loading' : 'picker.unavailable')}</div>}
         {sampleError && <p role="alert">{t('picker.previewFailed')}</p>}
       </div>
       <div className={css.list}>
@@ -242,8 +235,6 @@ export function VoicePicker({ selection, selectedVoice, favorites, onFavorites, 
           <button type="button" key={voice.id} aria-label={`${t('picker.select')} ${voice.name}`}
             aria-pressed={voice.id === current?.id} aria-current={sameVoice(voice.id) ? 'true' : undefined}
             onClick={() => navigate(pageStart + offset)} />)}</div>
-        {catalog !== null && <small>{current === undefined ? 0 : candidateIndex + 1} / {voices.length} · <a href={catalog.sourceUrl}
-          target="_blank" rel="noreferrer">{t(catalog.source === 'api' ? 'picker.api' : 'picker.documentation')}</a>{supplementalSource}</small>}
         {loadState === 'error' && <p role="status">{t('picker.unavailable')}</p>}
         {sampleError && <p role="alert">{t('picker.previewFailed')}</p>}
       </section>

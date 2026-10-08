@@ -14,6 +14,8 @@ dsh plugin --profile web add ./voicemesh-dsh-voice-0.1.0-beta.1.tgz
 
 In the Plugins list, enable **Voice Conversation**. If setup is incomplete, select **Finish voice setup**, then **Go to setup**. For realtime voice, choose a live provider and its voice. For pipeline voice, choose speech-recognition and speech-synthesis providers plus a conversational model; DeepSeek is one of the conversational-model presets. Add the required provider keys through the VoiceMesh settings form.
 
+If the selected voice route needs a key that has not been saved, tapping the voice button opens a missing-key prompt. **Go to setup** opens VoiceMesh's existing page in Plugins, where you can add the key.
+
 ## Supported provider choices
 
 | Mode | Current choices |

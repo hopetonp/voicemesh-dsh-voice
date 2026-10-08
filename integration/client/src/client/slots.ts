@@ -9,6 +9,7 @@
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { VoiceConfig } from './config.ts'
 import type { VoicePhaseState } from './state.ts'
+import type { VoiceCredentialSlot } from './voice-credentials.ts'
 
 /** The verbs + reactive sources injected into the voice control. */
 export interface MicDockActions {
@@ -22,6 +23,10 @@ export interface MicDockActions {
   onSpeakerMute(): void
   /** Read the last agent reply back aloud. */
   onReadBack(): void
+  /** Missing host-managed keys for the currently selected voice route. */
+  missingCredentials(): readonly VoiceCredentialSlot[]
+  /** Open the existing VoiceMesh settings page. */
+  onOpenSetup(): void
   /**
    * Discover the realtime models the selected provider offers, each with the thinking states it
    * acts on. The composer's tip asks for this when it first opens: the level it names must be one

@@ -8,9 +8,12 @@ import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
  * @param props - Localized labels, saved-state indicator, and connection fields.
  * @returns The launch button and connection dialog.
  */
-export function ConnectionSettings({ t, indicator, children }: PropsLocale<'voice'> & {
+export function ConnectionSettings({ t, indicator, error = false, children }: PropsLocale<'voice'> & {
   indicator?: ReactNode
-  children: ReactNode
+  /** Report a confirmed credential save so this dialog can close. */
+  children: (onSaved: () => void) => ReactNode
+  /** A failed save remains visible inside the dialog. */
+  error?: boolean
 }) {
   const [open, setOpen] = useState(false)
   return <>
@@ -19,7 +22,8 @@ export function ConnectionSettings({ t, indicator, children }: PropsLocale<'voic
     </Button>
     <Modal open={open} onClose={() => setOpen(false)} title={t('conv.connectionSettings')}
       closeLabel={t('conv.connectionClose')}>
-      {children}
+      {children(() => setOpen(false))}
+      {error && <p role="alert">{t('key.hostError')}</p>}
     </Modal>
   </>
 }

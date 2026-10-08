@@ -8,7 +8,7 @@ import css from './VoiceSettings.module.css'
  * @param props - Field labels, saved status, pending key, and save action.
  * @returns A labeled password field with status and apply button.
  */
-export function CredentialField({ t, id, label, configured, value, onChange, onApply, disabled, placeholder }: PropsLocale<'voice'> & {
+export function CredentialField({ t, id, label, configured, value, onChange, onApply, disabled, placeholder, applyLabel }: PropsLocale<'voice'> & {
   id: string
   label: string
   configured: boolean
@@ -17,6 +17,7 @@ export function CredentialField({ t, id, label, configured, value, onChange, onA
   onApply: () => void | Promise<void>
   disabled?: boolean
   placeholder?: string
+  applyLabel?: string
 }) {
   return <div className={css.field}>
     <div className={css.labelRow}>
@@ -26,7 +27,7 @@ export function CredentialField({ t, id, label, configured, value, onChange, onA
     <input id={id} className={css.input} type="password" autoComplete="off" spellCheck={false}
       value={value} placeholder={placeholder} onChange={event => onChange(event.target.value)} />
     <div className={css.btnRow}>
-      <Button variant="primary" size="sm" disabled={disabled || !value.trim()} onClick={onApply}>{t('key.apply')}</Button>
+      <Button variant="primary" size="sm" disabled={disabled || !value.trim()} onClick={onApply}>{applyLabel ?? t('key.apply')}</Button>
     </div>
   </div>
 }
