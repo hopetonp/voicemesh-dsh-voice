@@ -1,6 +1,3 @@
-# Connection RPC registration accesses webServer on its owning context.
-- id: connection
-  inject: [webRuntime, webServer]
 - insert:
     - id: voice-host
       name: '@voicemesh/dsh-voice/host'

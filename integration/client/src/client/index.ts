@@ -162,7 +162,7 @@ export function apply(ctx: ClientContext): void {
   ): Promise<void> => {
     const connection = ctx.get('connection') as ConnectionHandle | undefined
     if (!connection) throw new Error('Voice connection unavailable')
-    const result = await connection.rpc.call('/voice-credentials', endpoint, {
+    const result = await connection.rpc.call('/api', `voice-credentials/${endpoint}`, {
       slot, ...(slot === 'conversational' ? { baseUrl } : {}),
       ...(value === undefined ? {} : { value, migrate }),
     })
@@ -352,7 +352,7 @@ export function apply(ctx: ClientContext): void {
     const selected = resolveStsSettings(cfg())
     const connection = ctx.get('connection') as ConnectionHandle | undefined
     if (connection === undefined) throw new Error('Voice connection unavailable')
-    const result = await connection.rpc.call('/voice-sts', 'models', { provider: selected.provider }, signal)
+    const result = await connection.rpc.call('/api', 'voice-sts/models', { provider: selected.provider }, signal)
     // Each listing carries the thinking states the model offers, so a panel can offer that choice
     // only where it changes the session. An entry this build cannot read as a listing fails the
     // call; a thinking pair it cannot read only costs the choice itself.
@@ -481,7 +481,7 @@ export function apply(ctx: ClientContext): void {
         const selected = resolveStsSettings(c)
         const connection = ctx.get('connection') as ConnectionHandle | undefined
         if (connection === undefined) return false
-        const result = await connection.rpc.call('/voice-sts', 'probe', {
+        const result = await connection.rpc.call('/api', 'voice-sts/probe', {
           provider: selected.provider, model: selected.model, voice: selected.voice,
           silenceSec: c.stsSilenceSec, thinking: c.stsThinking, protocol,
         })
@@ -491,7 +491,7 @@ export function apply(ctx: ClientContext): void {
       listPipelineModels: async (provider, kind, signal) => {
         const connection = ctx.get('connection') as ConnectionHandle | undefined
         if (!connection) throw new Error('Voice connection unavailable')
-        const result = await connection.rpc.call('/voice-sts', 'pipeline-models', { provider, kind }, signal)
+        const result = await connection.rpc.call('/api', 'voice-sts/pipeline-models', { provider, kind }, signal)
         if (!result.ok || typeof result.value !== 'object' || result.value === null || !('models' in result.value)
           || !Array.isArray(result.value.models) || !result.value.models.every((id: unknown): id is string => typeof id === 'string')) throw new Error('Speech model discovery failed')
         return result.value.models
@@ -500,14 +500,14 @@ export function apply(ctx: ClientContext): void {
       localModelDownloadSize: async (request, signal) => {
         const connection = ctx.get('connection') as ConnectionHandle | undefined
         if (!connection) throw new Error('Voice connection unavailable')
-        const result = await connection.rpc.call('/voice-local', 'install-size', request, signal)
+        const result = await connection.rpc.call('/api', 'voice-local/install-size', request, signal)
         if (!result.ok) throw new Error(result.error.message)
         return typeof result.value === 'number' && result.value > 0 ? result.value : null
       },
       installLocalModels: async (request, signal) => {
         const connection = ctx.get('connection') as ConnectionHandle | undefined
         if (!connection) throw new Error('Voice connection unavailable')
-        const result = await connection.rpc.call('/voice-local', request ? 'install' : 'install-status', request ?? {}, signal)
+        const result = await connection.rpc.call('/api', request ? 'voice-local/install' : 'voice-local/install-status', request ?? {}, signal)
         if (!result.ok) throw new Error(result.error.message)
         const value = result.value
         if (typeof value !== 'object' || value === null || !('running' in value) || typeof value.running !== 'boolean'
@@ -520,14 +520,14 @@ export function apply(ctx: ClientContext): void {
       listLocalModels: async (signal) => {
         const connection = ctx.get('connection') as ConnectionHandle | undefined
         if (!connection) throw new Error('Voice connection unavailable')
-        const result = await connection.rpc.call('/voice-local', 'models', {}, signal)
+        const result = await connection.rpc.call('/api', 'voice-local/models', {}, signal)
         if (!result.ok || !Array.isArray(result.value)) throw new Error('Local model discovery failed')
         return parseLocalModels(result.value)
       },
       wakeReady: async (modelId, signal) => {
         const connection = ctx.get('connection') as ConnectionHandle | undefined
         if (!connection) throw new Error('Voice connection unavailable')
-        const result = await connection.rpc.call('/voice-local', 'wake-readiness', { modelId }, signal)
+        const result = await connection.rpc.call('/api', 'voice-local/wake-readiness', { modelId }, signal)
         return result.ok && typeof result.value === 'object' && result.value !== null
           && 'ready' in result.value && result.value.ready === true
       },
@@ -536,7 +536,7 @@ export function apply(ctx: ClientContext): void {
         if (connection === undefined) throw new Error('Voice connection unavailable')
         const language = selection.provider === 'fish'
           ? selection.language ?? new Intl.Locale(ctx.locale.getSnapshot().active).language : undefined
-        const result = await connection.rpc.call('/voice-sts', 'voices', {
+        const result = await connection.rpc.call('/api', 'voice-sts/voices', {
           ...selection, ...(language === undefined ? {} : { language }),
         }, signal)
         if (!result.ok) throw new Error('Voice discovery failed')

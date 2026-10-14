@@ -4,6 +4,7 @@ import { pipelineRecognizer } from './pipeline-recognizer.ts'
 import { listGeminiSpeechModels } from './gemini-models.ts'
 import { listOpenaiSpeechModels } from './openai-speech-models.ts'
 import { readVoiceCredential, credentialedVoiceRequest, voiceCredentialOperation } from './voice-credentials.ts'
+import { registerVoiceRpc } from './voice-rpc.ts'
 import { mountConversationalProxy } from './conversational-proxy.ts'
 import { LocalVoice } from './local-voice.ts'
 import { mountPipelineTts } from './pipeline-tts.ts'
@@ -413,11 +414,11 @@ export function apply(ctx: Context, config: Config): void {
     threads: config.localThreads ?? 2, idleMs: config.localIdleMs ?? 60000, timeoutMs: config.localTimeoutMs ?? 30000 })
   ctx.effect(() => () => local.dispose(), 'voice-host: local model workers')
   ctx.inject(['connection'], (connected) => {
-    connected.effect(() => connected.connection.rpc.handle('/voice-credentials', async (endpoint, payload) => {
+    connected.effect(() => registerVoiceRpc(connected.connection, '/voice-credentials', async (endpoint, payload) => {
       try { return { ok: true, value: await voiceCredentialOperation(ctx, endpoint, payload, config.deepgramKey) } }
       catch { return { ok: false, error: { code: 'voice/credentials', message: 'Voice credential operation failed; check host credential settings', details: {} } } }
     }), 'voice-host: credential setup')
-    connected.effect(() => connected.connection.rpc.handle('/voice-local', async (endpoint) => {
+    connected.effect(() => registerVoiceRpc(connected.connection, '/voice-local', async (endpoint) => {
       if (endpoint !== 'models') return { ok: false, error: { code: 'voice/local', message: 'Unknown local voice operation', details: {} } }
       try {
         const models = await local.models()
@@ -428,7 +429,7 @@ export function apply(ctx: Context, config: Config): void {
       config.deepgramKey, connectNodeWebSocket, local)
     const lifetime = new AbortController()
     connected.effect(() => () => { lifetime.abort() }, 'voice-host: STS probe cancellation')
-    connected.effect(() => connected.connection.rpc.handle('/voice-sts',
+    connected.effect(() => registerVoiceRpc(connected.connection, '/voice-sts',
       async (endpoint, payload, signal) => {
         if (endpoint === 'voices' && typeof payload === 'object' && payload !== null
           && 'provider' in payload && payload.provider === 'kokoro') {
@@ -489,7 +490,7 @@ export function apply(ctx: Context, config: Config): void {
   ctx.inject(['connection', 'sessionController', 'sessions'], (connected) => {
     mountPipelineTts(connected, `${config.ttsPath}/stream`, connect, config.stsMaxQueuedBytes ?? 1048576, config.stsProbeTimeoutMs ?? 15000, config.deepgramKey)
     const pipelineTool = createPipelineTools(connected)
-    connected.effect(() => connected.connection.rpc.handle('/voice-pipeline', async (endpoint, payload, signal) => {
+    connected.effect(() => registerVoiceRpc(connected.connection, '/voice-pipeline', async (endpoint, payload, signal) => {
       if (endpoint === 'tool') {
         try { return { ok: true, value: await pipelineTool(payload, signal) } }
         catch (error) { return { ok: false, error: { code: 'voice/tool', message: (error as Error).message, details: {} } } }

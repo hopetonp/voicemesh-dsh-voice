@@ -326,10 +326,7 @@ await cp(join(root, 'LICENSE'), join(output, 'LICENSE'));
 await cp(join(root, 'LICENSE-COMPOSER'), join(output, 'LICENSE-COMPOSER'));
 await cp(join(root, 'NOTICE'), join(output, 'NOTICE'));
 await cp(join(root, 'README.md'), join(output, 'README.md'));
-await writeFile(join(output, 'cordis.patch.yml'), `# Connection RPC registration accesses webServer on its owning context.
-- id: connection
-  inject: [webRuntime, webServer]
-- insert:
+await writeFile(join(output, 'cordis.patch.yml'), `- insert:
     - id: voice-host
       name: '@voicemesh/dsh-voice/host'
       config:

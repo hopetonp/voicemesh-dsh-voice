@@ -246,7 +246,7 @@ export function buildDshTransport(
       if (!sessionId || !deps.getConfig().transcriptHistory) return
       const connection = ctx.get('connection') as ConnectionHandle | undefined
       if (connection === undefined) throw new Error('Voice connection unavailable')
-      const result = await connection.rpc.call('/voice-pipeline', 'exchange', {
+      const result = await connection.rpc.call('/api', 'voice-pipeline/exchange', {
         sessionId, user: '', assistant: caption.text,
         playback: { id: captionId, phase: caption.phase, interrupted: caption.interrupted },
       })
@@ -286,7 +286,7 @@ export function buildDshTransport(
           }
           const connection = ctx.get('connection') as ConnectionHandle | undefined
           if (connection === undefined) throw new Error('Voice connection unavailable')
-          const result = await connection.rpc.call('/voice-pipeline', 'tool', { sessionId, conversationId: id, callId, name, args }, requestSignal)
+          const result = await connection.rpc.call('/api', 'voice-pipeline/tool', { sessionId, conversationId: id, callId, name, args }, requestSignal)
           if (!result.ok) throw new Error(typeof result.error === 'string' ? result.error : result.error.message)
           return result.value
         },
@@ -453,7 +453,7 @@ export function buildDshTransport(
       if (!deps.getConfig().transcriptHistory) return
       const connection = ctx.get('connection') as ConnectionHandle | undefined
       if (connection === undefined) throw new Error('Voice connection unavailable')
-      const result = await connection.rpc.call('/voice-pipeline', 'exchange', { sessionId, user, assistant })
+      const result = await connection.rpc.call('/api', 'voice-pipeline/exchange', { sessionId, user, assistant })
       if (!result.ok) throw new Error('Voice transcript could not be saved')
     },
 
@@ -871,7 +871,7 @@ export function attachVoiceLoop(
       if (wake !== channel || wakeIdentity !== identity) return
       const connection = ctx.get('connection')
       if (connection === undefined) throw new Error('Voice connection unavailable')
-      const result = await connection.rpc.call('/voice-local', 'wake-keywords', {
+      const result = await connection.rpc.call('/api', 'voice-local/wake-keywords', {
         modelId: selected.wakeModelId,
         phrases: [selected.wakePhrase.trim()],
       })
