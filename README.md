@@ -20,7 +20,14 @@ Restart the Web profile after installing or updating the plugin.
 
 ### Install from GitHub (Web or Desktop)
 
-In DeepSeek Harness, open **Plugins → Add plugin** and paste the [GitHub package URL](https://github.com/hopetonp/voicemesh-dsh-voice/releases/download/v0.1.0-beta.4/voicemesh-dsh-voice-0.1.0-beta.4.tgz). Install it, restart Harness, then enable **Voice Conversation by Hopeton** in **Plugins**.
+In DeepSeek Harness, open **Plugins → Add plugin** and paste either the repository URL or the prebuilt release package URL:
+
+```text
+https://github.com/hopetonp/voicemesh-dsh-voice
+https://github.com/hopetonp/voicemesh-dsh-voice/releases/download/v0.1.0-beta.4/voicemesh-dsh-voice-0.1.0-beta.4.tgz
+```
+
+Install it, restart Harness, then enable **Voice Conversation by Hopeton** in **Plugins**.
 
 To have an AI agent install it on your computer, give it this request:
 

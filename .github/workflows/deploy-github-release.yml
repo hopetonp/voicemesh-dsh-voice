@@ -30,3 +30,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
         run: node scripts/deploy-github-release.mjs "$RELEASE_TAG"
+      - name: Make the Git repository installable
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          node scripts/sync-git-bundle.mjs "$RELEASE_TAG"
+          npm pack --ignore-scripts --pack-destination /tmp --json > /tmp/voicemesh-git-package.json
+          git add package.json lib locale cordis.patch.yml provenance.json NOTICE THIRD_PARTY_LICENSES
+          git diff --cached --check
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "Bundle ${RELEASE_TAG} for Git installation"
+            git push origin HEAD:main
+          fi
