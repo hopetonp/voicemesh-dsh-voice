@@ -1,4 +1,4 @@
-import type { HostConnectionService } from '@deepseek-ai/dsh-client-connection'
+import type { HostConnectionHandle } from '@deepseek-ai/dsh-client-connection'
 
 type RpcResult = { ok: true; value?: unknown; attachments?: { kind: string; bytes: Uint8Array }[] }
   | { ok: false; error: { code: string; message: string; details: Record<string, unknown> } }
@@ -12,7 +12,7 @@ const endpoints: Record<string, readonly string[]> = {
 }
 
 /** Extend the existing authenticated API without reconfiguring Connection. */
-export function registerVoiceRpc(connection: HostConnectionService, channel: string, handler: VoiceHandler): () => Promise<void> {
+export function registerVoiceRpc(connection: HostConnectionHandle, channel: string, handler: VoiceHandler): () => Promise<void> {
   const methods = endpoints[channel]
   if (!methods) throw new Error('Unknown voice RPC channel')
   const disposers = methods.map(endpoint => {
