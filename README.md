@@ -2,7 +2,7 @@
 
 VoiceMesh adds live voice conversations to DeepSeek Harness. Choose a realtime speech provider, or use a pipeline that combines speech recognition, a conversational model, and speech synthesis.
 
-**Beta compatibility:** The `0.1.0-beta.2` candidate displays Beta in the Harness plugin list. The earlier publishable `0.1.0-beta.1` candidate passed keyless setup checks with published `@deepseek-ai/dsh@0.2.0-rc.2`. A preceding private build passed the composer-control check. Live-provider behavior on the publishable tarball has not yet been verified.
+**Beta compatibility:** The `0.1.0-beta.2` candidate uses the Voice Conversation display name. The earlier publishable `0.1.0-beta.1` candidate passed keyless setup checks with published `@deepseek-ai/dsh@0.2.0-rc.2`. A preceding private build passed the composer-control check. Live-provider behavior on the publishable tarball has not yet been verified.
 
 ## Install a reviewed candidate
 

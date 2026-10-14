@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Voice Conversation (Beta)",
+    "title": "Voice Conversation",
     "description": "Talk with your coding agent using live speech; first use may require installing local speech models or configuring a supported cloud provider."
   }
 }
