@@ -279,13 +279,26 @@ await mkdir(join(output, 'lib'), { recursive: true });
 // host through a subpath so the profile can mount it as a separate Loader row.
 await writeFile(join(output, 'lib/index.js'), "export const name = '@voicemesh/dsh-voice';\nexport function apply() {}\n");
 await writeFile(join(output, 'lib/host.js'), "export * from '@deepseek-ai/dsh-voice-host';\n");
-const clientBundle = await readFile(join(modules, '@deepseek-ai/dsh-voice-client/lib/client.js'), 'utf8');
-if (!clientBundle.includes('id: "@deepseek-ai/dsh-voice-client"')) {
+const frameworkClientId = '@deepseek-ai/dsh-voice-client';
+const installedPluginId = '@voicemesh/dsh-voice';
+const clientBundleTemplate = await readFile(join(clientBuild, 'lib/client.js'), 'utf8');
+const frameworkCssOwnerCount = [...clientBundleTemplate.matchAll(
+  /\.dataset\.plugin\s*=\s*["']@deepseek-ai\/dsh-voice-client["']/g,
+)].length;
+if (frameworkCssOwnerCount === 0) {
+  throw new Error('Voice client bundle has no plugin-owned CSS styles to remap.');
+}
+const clientBundle = clientBundleTemplate.replaceAll(frameworkClientId, installedPluginId);
+if (!/\bid\s*:\s*["']@voicemesh\/dsh-voice["']/.test(clientBundle)) {
   throw new Error('Voice client bundle has no expected module id.');
 }
-await writeFile(join(output, 'lib/client.js'), clientBundle.replace(
-  'id: "@deepseek-ai/dsh-voice-client"', 'id: "@voicemesh/dsh-voice"',
-));
+const installedCssOwnerCount = [...clientBundle.matchAll(
+  /\.dataset\.plugin\s*=\s*["']@voicemesh\/dsh-voice["']/g,
+)].length;
+if (installedCssOwnerCount !== frameworkCssOwnerCount || clientBundle.includes(frameworkClientId)) {
+  throw new Error('Voice client CSS is not owned by the installed plugin id.');
+}
+await writeFile(join(output, 'lib/client.js'), clientBundle);
 await writeBundledDependencyLicenses(join(output, 'THIRD_PARTY_LICENSES'), [
   join(hostBuild, 'lib'),
   join(clientBuild, 'lib'),
