@@ -4,13 +4,25 @@ VoiceMesh adds live, bidirectional voice to DeepSeek Harness. Choose a realtime 
 
 ## Installation
 
-Install the beta from npm in a supported DeepSeek Harness profile. For Web:
+### In the app (Web or Desktop)
+
+Open **Plugins → Add plugin** in DeepSeek Harness, enter `@voicemesh/dsh-voice@0.1.0-beta.4`, and install it. Restart DeepSeek Harness, then enable **Voice Conversation by Hopeton** in **Plugins** and open its settings editor.
+
+### GitHub download (Web or Desktop)
+
+Download the [beta.4 package archive](https://github.com/hopetonp/voicemesh-dsh-voice/releases/download/v0.1.0-beta.4/voicemesh-dsh-voice-0.1.0-beta.4.tgz). To install from GitHub, paste that download link into **Plugins → Add plugin** instead of the npm package name. The repository source files are for development; use the release archive for installation.
+
+### Optional terminal setup for Web
+
+If you manage the Web profile from a terminal, install the same package with:
 
 ```sh
 dsh plugin --profile web add @voicemesh/dsh-voice@0.1.0-beta.4
 ```
 
-For Desktop, open **Plugins → Add plugin**, enter `@voicemesh/dsh-voice@0.1.0-beta.4`, and install it. Restart the app or Web profile after installation or an update. In **Plugins**, enable **Voice Conversation by Hopeton** and open its settings editor. Install only one voice integration that contributes a microphone control to the chat composer.
+Restart the Web profile after installing or updating the plugin.
+
+Install only one voice integration that contributes a microphone control to the chat composer.
 
 ## Set up voice
 
@@ -35,13 +47,7 @@ VoiceMesh does not download or choose local pipeline speech models automatically
 
 The chat composer shows a voice control for an empty draft and Send while text is present.
 
-To remove the bundle:
-
-```sh
-dsh plugin --profile web remove @voicemesh/dsh-voice
-```
-
-For Desktop, remove the plugin from **Plugins**. Restart after removal.
+To remove the plugin in Web or Desktop, open **Plugins**, uninstall it, and restart.
 
 ## Security
 

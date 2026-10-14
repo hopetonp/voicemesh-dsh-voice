@@ -28,13 +28,15 @@ Install this exact archive in a fresh isolated `DSH_HOME` with the selected publ
 
 With dedicated revocable test credentials, verify a live voice turn, interruption, standby, transcript history, and reconnection using the exact archive. Record the provider, model, Harness version, OS, browser or Desktop build, and result. Do not infer these results from an earlier private archive or from an owner report about another build.
 
-## Publish and verify
+## Publish to GitHub and npm
 
 Before publication, confirm `npm whoami` identifies an account authorized to publish the `@voicemesh` scope. Resolve the repository URL in package metadata: the linked GitHub repository must be accessible to intended npm users, or the metadata must point to an accessible support location. Obtain the owner's approval of the reviewed archive and public release.
+
+Create a public GitHub prerelease tagged `v0.1.0-beta.4` and attach the exact reviewed archive as `voicemesh-dsh-voice-0.1.0-beta.4.tgz`. Download the release asset, compare its SHA-256 with the reviewed archive, and verify that the asset URL installs through **Plugins → Add plugin**. The GitHub source archive is not an installable package.
 
 ```sh
 npm publish /absolute/path/to/voicemesh-dsh-voice-0.1.0-beta.4.tgz --tag beta --access public
 npm view @voicemesh/dsh-voice version dist-tags --json
 ```
 
-After publication, install `@voicemesh/dsh-voice@0.1.0-beta.4` from the registry in a fresh profile and repeat the keyless plugin activation check. Record the registry version, beta dist-tag, package integrity, and install result in the release evidence. If the release must be withdrawn from normal discovery, move the `beta` dist-tag to a reviewed version and deprecate the affected version; do not assume published npm bytes can be replaced.
+After npm publication, install `@voicemesh/dsh-voice@0.1.0-beta.4` from the registry in a fresh profile and repeat the keyless plugin activation check. Record the registry version, beta dist-tag, package integrity, GitHub asset hash, and install results in the release evidence. If the release must be withdrawn from normal discovery, move the `beta` dist-tag to a reviewed version and deprecate the affected version; do not assume published npm bytes can be replaced.
