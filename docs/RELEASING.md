@@ -1,43 +1,40 @@
-# Releasing VoiceMesh
+# Releasing Voice Conversation
 
-`0.1.0-beta.1` has a publishable candidate tarball but has not been published.
+This procedure prepares the public npm beta of `@voicemesh/dsh-voice`. The source manifest stays private; `npm run package -- ... --public` creates a separate publishable archive. Packaging does not publish it. Record candidate-specific results in [release evidence](RELEASE_EVIDENCE.md).
 
-## Candidate evidence
+## Select release inputs
 
-`docs/RELEASE_EVIDENCE.md` is the release record. It verifies the stock Web plugin UI on published `@deepseek-ai/dsh@0.2.0-rc.2`: enabling VoiceMesh with incomplete configuration shows **Finish voice setup**; the bundle detail opens the existing Voice settings form; and the composer swaps between one voice control for an empty draft and Send for typed text. That check used no provider key or paid call.
+Use the single VoiceMesh Composer checkout at `/Users/hgp/Projects/voicemesh-composer`. Build from reviewed, committed Composer and plugin source states. Select a clean Harness checkout corresponding to the published Harness version used for compatibility testing. Record the three source revisions, Composer build hash from `provenance.json`, Harness version, and Node version. Do not use an older Composer tarball installed in Harness as the build input.
 
-An official Desktop build was also checked for the client control, and a user later reported live voice working after adding provider keys. That report is useful product evidence, but it does not complete an isolated credentialed smoke of the candidate tarball.
+The current npm release target is `0.1.0-beta.3`. The npm package name and version are immutable after publication; create a new prerelease version if the candidate content changes after publication.
 
-The current publishable tarball passed a bounded archive scan and keyless setup-route checks in fresh stock Web. The preceding private tarball passed browser composer, restart, and removal checks; the publishable tarball has not had its browser UI independently verified because the browser client blocked direct localhost navigation. `docs/RELEASE_EVIDENCE.md` names both exact paths and SHA-256 values. Do not carry forward live-voice evidence from an earlier archive as evidence for this candidate.
+## Build the candidate
 
-## Prepare a candidate
-
-Build the required components, then set `VOICEMESH_COMPOSER_DIR` to the intended built Composer checkout. Both staging and packaging use that checkout rather than the Composer tarball installed in Harness. Stage against the intended Harness checkout:
+Build Composer and run the plugin source check. From the plugin repository, with the selected Harness checkout built:
 
 ```sh
-VOICEMESH_COMPOSER_DIR=/path/to/built/voicemesh-composer npm run stage -- /path/to/deepseek-harness
+npm run check
+VOICEMESH_COMPOSER_DIR=/Users/hgp/Projects/voicemesh-composer npm run stage -- /path/to/built/deepseek-harness
+VOICEMESH_COMPOSER_DIR=/Users/hgp/Projects/voicemesh-composer npm run package -- /path/to/built/deepseek-harness --public
 ```
 
-Package only after reviewing the staged result:
+The packager builds the wrapper client and host, bundles the runtime, generates `THIRD_PARTY_LICENSES`, and prints the candidate tarball path. Its manifest must have no `private` field and must request public npm access. Treat the printed path as the only candidate under review; an archive with the same version but different bytes needs a new evidence entry and repeat checks.
+
+## Review the exact archive
+
+Record its path, SHA-256, package manifest, bundled component versions, `provenance.json`, and file inventory. Confirm the archive includes the full README, icon, plugin locale, `LICENSE`, `LICENSE-COMPOSER`, `NOTICE`, and `THIRD_PARTY_LICENSES`. Inspect all packed files for credentials, private keys, conversation or session data, absolute developer paths, source maps, and private source. Compare any developer-path matches in served composite browser assets with a stock Harness baseline before attributing them to this plugin.
+
+Install this exact archive in a fresh isolated `DSH_HOME` with the selected published Harness version. Verify the Web plugin list and editor, one microphone control for an empty draft, Send for typed text, provider setup, the keyless setup probe, restart, and removal. Install it in the official Desktop build and verify the same plugin title, editor, and controls. Record which checks used only local/keyless behavior.
+
+With dedicated revocable test credentials, verify a live voice turn, interruption, standby, transcript history, and reconnection using the exact archive. Record the provider, model, Harness version, OS, browser or Desktop build, and result. Do not infer these results from an earlier private archive or from an owner report about another build.
+
+## Publish and verify
+
+Before publication, confirm `npm whoami` identifies an account authorized to publish the `@voicemesh` scope. Resolve the repository URL in package metadata: the linked GitHub repository must be accessible to intended npm users, or the metadata must point to an accessible support location. Obtain the owner's approval of the reviewed archive and public release.
 
 ```sh
-VOICEMESH_COMPOSER_DIR=/path/to/built/voicemesh-composer npm run package -- /path/to/built/harness
+npm publish /absolute/path/to/voicemesh-dsh-voice-0.1.0-beta.3.tgz --tag beta --access public
+npm view @voicemesh/dsh-voice version dist-tags --json
 ```
 
-When the release checks are ready, build the publishable candidate from the same source with `VOICEMESH_COMPOSER_DIR=/path/to/built/voicemesh-composer npm run package -- /path/to/built/harness --public`. The root package will omit `private` and set public npm access. Packaging does not publish; review the new tarball and its SHA-256 before `npm publish <tarball> --tag beta --access public`.
-
-## Required release review
-
-For the exact tarball to be released, record its path, SHA-256, manifest version, component versions, and source identities in `docs/RELEASE_EVIDENCE.md`. Then, in a fresh isolated `DSH_HOME` with the supported published Harness version:
-
-1. Install with `dsh plugin --profile web add <tarball>`, enable it, and verify the plugin UI, setup flow, and composer control.
-2. Configure only dedicated, revocable test credentials and verify a live voice turn, interruption, standby, transcript history, restart, and removal with `dsh plugin --profile web remove @voicemesh/dsh-voice`.
-3. Run the keyless setup probe to verify provider-status routes, local-model discovery, and unauthenticated rejection without writing credentials.
-4. Review the exact archive and served VoiceMesh contribution for credentials, private keys, conversation logs, developer paths, source maps, source/test files, and private Composer source. Compare composite-module source-map results with a stock-Harness baseline before attributing them to VoiceMesh.
-5. Confirm the archive retains the required licenses and third-party notices, and verify the npm scope owner can publish.
-
-Use a browser microphone grant for the live smoke and record the Harness version, OS, browser, selected providers, and results. Do not use a shared credential store or ordinary user keys.
-
-## Publication blockers
-
-Do not publish while the exact publishable candidate lacks a user-run live-voice turn or npm-scope authorization. Its bounded archive scan and keyless setup-route checks are recorded, but neither establishes live-provider behavior. A user-reported Desktop test of another archive does not establish it either.
+After publication, install `@voicemesh/dsh-voice@0.1.0-beta.3` from the registry in a fresh profile and repeat the keyless plugin activation check. Record the registry version, beta dist-tag, package integrity, and install result in the release evidence. If the release must be withdrawn from normal discovery, move the `beta` dist-tag to a reviewed version and deprecate the affected version; do not assume published npm bytes can be replaced.

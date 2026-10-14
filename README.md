@@ -1,24 +1,28 @@
-# VoiceMesh for DeepSeek Harness
+# Voice Conversation for DeepSeek Harness
 
 VoiceMesh adds live voice conversations to DeepSeek Harness. Choose a realtime speech provider, or use a pipeline that combines speech recognition, a conversational model, and speech synthesis.
 
-**Beta compatibility:** The `0.1.0-beta.2` candidate uses the Voice Conversation display name. The earlier publishable `0.1.0-beta.1` candidate passed keyless setup checks with published `@deepseek-ai/dsh@0.2.0-rc.2`. A preceding private build passed the composer-control check. Live-provider behavior on the publishable tarball has not yet been verified.
+**Release status:** `0.1.0-beta.3` is being prepared for public npm distribution. The plugin is displayed as **Voice Conversation**; its beta status is in the version. The repository release record identifies the exact archive and Harness versions tested before publication.
 
-## Install a reviewed candidate
+## Install
 
-Use the candidate tarball and Harness profile named in its release notes:
+After the beta is published, install it from npm in a supported DeepSeek Harness profile. For Web:
 
 ```sh
-dsh plugin --profile web add ./voicemesh-dsh-voice-0.1.0-beta.2.tgz
+dsh plugin --profile web add @voicemesh/dsh-voice@0.1.0-beta.3
 ```
 
-In the Plugins list, enable **Voice Conversation**. If setup is incomplete, select **Finish voice setup**, then **Go to setup**. For realtime voice, choose a live provider and its voice. For pipeline voice, choose speech-recognition and speech-synthesis providers plus a conversational model; DeepSeek is one of the conversational-model presets. Add the required provider keys through the VoiceMesh settings form.
+For Desktop, open **Plugins → Add plugin**, enter `@voicemesh/dsh-voice@0.1.0-beta.3`, and install it. Restart the app or Web profile after installation or an update. In **Plugins**, enable **Voice Conversation** and open its settings editor. Install only one voice integration that contributes a microphone control to the chat composer.
+
+Until npm publication, maintainers can install the exact reviewed tarball named in the repository release record. Do not substitute a different archive with the same version.
+
+## Set up voice
+
+The editor has **General**, **Voice provider**, and **Conversation** areas. Choose realtime speech or a pipeline, then select its providers and models. Save provider API keys through the editor's connection settings. If a key is missing when you start voice chat, **Go to setup** opens the VoiceMesh setup form.
 
 Realtime model choices come from VoiceMesh Composer's provider catalog for the saved key.
 
-Use **Plugins → Voice Conversation** to edit VoiceMesh. The editor has **General**, **Voice provider**, and **Conversation** areas. In Conversation, enable **Plain-language summaries** to have coding results explained in everyday language. The preference applies to pipeline and live voice and is off by default.
-
-If the selected voice route needs a key that has not been saved, tapping the voice button opens a missing-key prompt. **Go to setup** opens VoiceMesh's existing page in Plugins, where you can add the key.
+In **Conversation**, enable **Plain-language summaries** to have coding results explained in everyday language. The preference applies to pipeline and live voice and is off by default.
 
 ## Supported provider choices
 
@@ -33,7 +37,7 @@ The model and voice lists depend on the selected provider and its current config
 
 VoiceMesh does not download or choose local pipeline speech models automatically. If you select a local speech engine, download its model pack through the setup flow and select it there. A local speech-recognition or synthesis engine does not make the selected conversational model local.
 
-The verified stock-Web UI behavior is one voice control for an empty draft, Send while text is present, and the voice control again after the draft is cleared. This keyless verification did not make a provider call.
+The chat composer shows a voice control for an empty draft and Send while text is present.
 
 To remove the bundle:
 
@@ -41,7 +45,7 @@ To remove the bundle:
 dsh plugin --profile web remove @voicemesh/dsh-voice
 ```
 
-Restart the profile after installing or removing a candidate. Do not install it alongside another voice integration that can add a second microphone control or duplicate routes.
+For Desktop, remove the plugin from **Plugins**. Restart after removal.
 
 ## Data handling
 
@@ -51,13 +55,11 @@ VoiceMesh dispatches the latest spoken request to the coding Session. GPT-Live o
 
 Do not include API keys, raw conversation logs, or private project content in bug reports. Include the VoiceMesh version, Harness version, operating system, browser, selected provider, and a redacted error message.
 
-## Known limits
+## Beta limits
 
-- The publishable `0.1.0-beta.1` tarball passed a bounded archive scan and fresh keyless stock-Web install and setup-route check. Browser composer, restart, and removal checks passed on a preceding private build; credentialed live voice, interruption, standby, and persisted history remain unverified for the publishable tarball.
-- The reported Desktop live test does not independently verify interruption, standby, persisted history, or removal and restart behavior.
-- The generated license inventory covers the known bundled dependencies and is included with this package.
+The public candidate must pass exact-archive release checks before publication. Earlier private builds ran in Web and Desktop, but their results do not establish live-provider behavior for a newly packed archive. Local speech engines also require model downloads during setup.
 
-See [license](LICENSE) and [notices](NOTICE). Composer attribution is retained in `LICENSE-COMPOSER`.
+The package includes a generated inventory of bundled third-party license texts. See [license](LICENSE), [notices](NOTICE), and [Composer license](LICENSE-COMPOSER).
 
 ## Author
 

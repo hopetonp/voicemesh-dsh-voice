@@ -298,6 +298,7 @@ await writeBundledDependencyLicenses(join(output, 'THIRD_PARTY_LICENSES'), [
 const packaged = {
   name: manifest.name, version: manifest.version, ...(publicRelease ? { publishConfig: { access: 'public' } } : { private: true }), type: 'module',
   description: manifest.description, icon: manifest.icon, author: manifest.author, repository: manifest.repository,
+  license: manifest.license, homepage: manifest.homepage, bugs: manifest.bugs,
   engines: manifest.engines, files: ['icon.svg', 'lib', 'locale', 'cordis.patch.yml', 'provenance.json', 'README.md', 'LICENSE', 'LICENSE-COMPOSER', 'NOTICE', 'THIRD_PARTY_LICENSES'],
   exports: { '.': './lib/index.js', './host': './lib/host.js', './client': './lib/client.js', './locale/*.json': './locale/*.json', './host/locale/*.json': './locale/host/*.json', './package.json': './package.json' },
   dsh: { bundle: { patch: './cordis.patch.yml' }, client: clientDsh },
@@ -344,4 +345,4 @@ await writeFile(join(output, 'cordis.patch.yml'), `# Connection RPC registration
 const packed = JSON.parse(execFileSync('npm', ['pack', '--json', '--ignore-scripts'], { cwd: output, encoding: 'utf8' }));
 const artifact = join(output, packed[0].filename);
 await writeFile(join(root, '.release/latest-artifact.json'), JSON.stringify({ artifact, output }, null, 2) + '\n');
-console.log('Private validation artifact: ' + artifact);
+console.log(`${publicRelease ? 'Public beta candidate' : 'Private validation artifact'}: ${artifact}`);

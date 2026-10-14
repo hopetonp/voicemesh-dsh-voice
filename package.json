@@ -1,8 +1,9 @@
 {
   "name": "@voicemesh/dsh-voice",
-  "version": "0.1.0-beta.2",
+  "version": "0.1.0-beta.3",
   "private": true,
   "type": "module",
+  "license": "MIT",
   "icon": "./icon.svg",
   "description": "Talk with your coding agent using live speech; first use may require installing local speech models or configuring a supported cloud provider.",
   "scripts": {
@@ -22,6 +23,7 @@
     "type": "git",
     "url": "git+https://github.com/hopetonp/voicemesh-dsh-voice.git"
   },
+  "homepage": "https://github.com/hopetonp/voicemesh-dsh-voice#readme",
   "bugs": {
     "url": "https://github.com/hopetonp/voicemesh-dsh-voice/issues"
   }
