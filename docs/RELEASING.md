@@ -1,4 +1,4 @@
-# Releasing Voice Conversation
+# Releasing Voice Conversation by Hopeton
 
 This procedure prepares the public npm beta of `@voicemesh/dsh-voice`. The source manifest stays private; `npm run package -- ... --public` creates a separate publishable archive. Packaging does not publish it. Record candidate-specific results in [release evidence](RELEASE_EVIDENCE.md).
 

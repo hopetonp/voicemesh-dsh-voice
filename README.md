@@ -1,8 +1,8 @@
-# Voice Conversation for DeepSeek Harness
+# Voice Conversation by Hopeton for DeepSeek Harness
 
 VoiceMesh adds live voice conversations to DeepSeek Harness. Choose a realtime speech provider, or use a pipeline that combines speech recognition, a conversational model, and speech synthesis.
 
-The plugin appears as **Voice Conversation** in Harness. The current prerelease version is `0.1.0-beta.3`.
+The plugin appears as **Voice Conversation by Hopeton** in Harness. The current prerelease version is `0.1.0-beta.3`.
 
 ## Installation
 
@@ -12,7 +12,7 @@ Install the beta from npm in a supported DeepSeek Harness profile. For Web:
 dsh plugin --profile web add @voicemesh/dsh-voice@0.1.0-beta.3
 ```
 
-For Desktop, open **Plugins → Add plugin**, enter `@voicemesh/dsh-voice@0.1.0-beta.3`, and install it. Restart the app or Web profile after installation or an update. In **Plugins**, enable **Voice Conversation** and open its settings editor. Install only one voice integration that contributes a microphone control to the chat composer.
+For Desktop, open **Plugins → Add plugin**, enter `@voicemesh/dsh-voice@0.1.0-beta.3`, and install it. Restart the app or Web profile after installation or an update. In **Plugins**, enable **Voice Conversation by Hopeton** and open its settings editor. Install only one voice integration that contributes a microphone control to the chat composer.
 
 ## Set up voice
 
