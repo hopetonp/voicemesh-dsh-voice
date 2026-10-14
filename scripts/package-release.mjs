@@ -14,7 +14,8 @@ const modules = join(output, 'node_modules');
 await mkdir(modules, { recursive: true });
 const clientSource = join(root, 'integration/client');
 const hostSource = join(root, 'integration/host');
-const composer = resolve(root, '../voicemesh-composer');
+if (!process.env.VOICEMESH_COMPOSER_DIR) throw new Error('Set VOICEMESH_COMPOSER_DIR to the Composer checkout to package.');
+const composer = await realpath(process.env.VOICEMESH_COMPOSER_DIR);
 const clientBuild = join(output, 'client-build');
 const hostBuild = join(output, 'host-build');
 
@@ -198,6 +199,12 @@ const components = [
 ];
 const { build } = await import(pathToFileURL(join(harness, 'node_modules/tsdown/dist/index.mjs')).href);
 const provenance = [];
+const composerManifest = JSON.parse(await readFile(join(composer, 'package.json'), 'utf8'));
+const composerHash = createHash('sha256');
+for (const entry of ['index.js', 'server.js', 'browser.js', 'pipeline.js']) {
+  composerHash.update(await readFile(join(composer, 'lib', entry)));
+}
+provenance.push({ name: composerManifest.name, sourceVersion: composerManifest.version, buildSha256: composerHash.digest('hex') });
 let clientDsh;
 for (const [name, relative] of components) {
   const source = relative, target = join(modules, name);

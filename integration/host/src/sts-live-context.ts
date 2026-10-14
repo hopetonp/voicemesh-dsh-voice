@@ -2,6 +2,7 @@
 import type { Session, SessionEvent, UserMessage } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-agent'
 import { segmentText } from '@voicemesh/composer'
+import { voiceSessionEvents } from './voice-session-events.ts'
 
 /** Public selection observation; voice never changes its linked session. */
 export type VoiceSelection = 'linked' | 'other' | 'none' | 'unknown'
@@ -31,7 +32,7 @@ export class StsLiveContext {
    * @param maxBytes - resolved snapshot limit, at least 1024 bytes.
    */
   constructor(private readonly session: Session, private readonly maxBytes: number) {
-    for (const event of session.ownEvents()) this.observe(event)
+    for (const event of voiceSessionEvents(session)) this.observe(event)
   }
 
   /**
@@ -76,7 +77,12 @@ export class StsLiveContext {
   }
 
   private external(message: UserMessage): boolean {
-    return message.source.kind === 'user' && 'rpcId' in message.source && !this.voiceRequests.has(message.source.rpcId)
+    if (message.source.kind !== 'user' || !('rpcId' in message.source)) return false
+    const rpcId = message.source.rpcId
+    if (this.voiceRequests.has(rpcId)) return false
+    return !voiceSessionEvents(this.session).some(event => event.type === 'voice/sts/event'
+      && (event.data.event.type === 'coding-task.intent' || event.data.event.type === 'coding-task.steer-requested')
+      && event.data.event.requestId === rpcId)
   }
 
   /**

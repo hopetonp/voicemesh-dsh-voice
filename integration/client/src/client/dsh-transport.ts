@@ -29,6 +29,7 @@ import type { VoicePhase, VoiceRuntimeStore } from './state.ts'
 import { pipelineModel, type VoiceConfig } from './config.ts'
 
 import { spokenResponseInstructions } from '@dsh-voice/harness-policy'
+import { plainLanguageInstruction } from './plain-language.ts'
 import { readLastOutputRemote, writeLastOutputRemote } from './last-output.ts'
 
 /** The host voice route paths. */
@@ -263,6 +264,7 @@ export function buildDshTransport(
         toolRounds: () => deps.getConfig().pipelineToolRounds,
         responseDetail: () => deps.getConfig().responseDetail,
         progressMode: () => deps.getConfig().progressMode,
+        plainLanguageSummaries: () => deps.getConfig().plainLanguageSummaries,
         request: (body, requestSignal) => {
           const c = deps.getConfig()
           return fetchConversational(`${conversationalEndpoint(c)}/chat/completions`, {
@@ -551,6 +553,9 @@ export function buildDshTransport(
             && 'turn' in event.data && typeof event.data.turn === 'number') openTurn = event.data.turn
           else if (event.type === 'user/message' && openTurn !== undefined) {
             const sourceId = sourceRequest(event.data)
+            // Voice task request IDs are stable and recognizable even when the
+            // host keeps voice-only receipts outside the Harness session log.
+            if (sourceId?.startsWith('voice:')) voiceRequests.add(sourceId)
             const id = sourceId === undefined ? undefined : steeredRequests.get(sourceId) ?? sourceId
             if (id !== undefined && voiceRequests.has(id)) {
               const requests = turnRequests.get(openTurn) ?? new Set<string>()
@@ -995,7 +1000,7 @@ export async function fetchConversational(url: string, init: RequestInit, fetchI
 /** Rewrite `text` through the configured conversational model (OpenAI-compatible chat). */
 export async function conversationalRewrite(c: VoiceConfig, text: string, _terse = false, sessionId?: string): Promise<string> {
   const base = conversationalEndpoint(c)
-  const system = `You are a voice assistant summarizing a saved coding report in the user's language. ${spokenResponseInstructions(c.responseDetail)}`
+  const system = `You are a voice assistant summarizing a saved coding report in the user's language. ${spokenResponseInstructions(c.responseDetail)} ${c.plainLanguageSummaries ? plainLanguageInstruction : ''}`
   const res = await fetchConversational(`${base}/chat/completions`, {
     method: 'POST',
     headers: {

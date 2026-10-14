@@ -2,17 +2,21 @@
 
 VoiceMesh adds live voice conversations to DeepSeek Harness. Choose a realtime speech provider, or use a pipeline that combines speech recognition, a conversational model, and speech synthesis.
 
-**Beta compatibility:** The publishable `0.1.0-beta.1` candidate passed keyless setup checks with published `@deepseek-ai/dsh@0.2.0-rc.2`. A preceding private build passed the composer-control check. Live-provider behavior on the publishable tarball has not yet been verified.
+**Beta compatibility:** The `0.1.0-beta.2` candidate displays Beta in the Harness plugin list. The earlier publishable `0.1.0-beta.1` candidate passed keyless setup checks with published `@deepseek-ai/dsh@0.2.0-rc.2`. A preceding private build passed the composer-control check. Live-provider behavior on the publishable tarball has not yet been verified.
 
 ## Install a reviewed candidate
 
 Use the candidate tarball and Harness profile named in its release notes:
 
 ```sh
-dsh plugin --profile web add ./voicemesh-dsh-voice-0.1.0-beta.1.tgz
+dsh plugin --profile web add ./voicemesh-dsh-voice-0.1.0-beta.2.tgz
 ```
 
 In the Plugins list, enable **Voice Conversation**. If setup is incomplete, select **Finish voice setup**, then **Go to setup**. For realtime voice, choose a live provider and its voice. For pipeline voice, choose speech-recognition and speech-synthesis providers plus a conversational model; DeepSeek is one of the conversational-model presets. Add the required provider keys through the VoiceMesh settings form.
+
+Realtime model choices come from VoiceMesh Composer's provider catalog for the saved key.
+
+Use **Plugins → Voice Conversation** to edit VoiceMesh. The editor has **General**, **Voice provider**, and **Conversation** areas. In Conversation, enable **Plain-language summaries** to have coding results explained in everyday language. The preference applies to pipeline and live voice and is off by default.
 
 If the selected voice route needs a key that has not been saved, tapping the voice button opens a missing-key prompt. **Go to setup** opens VoiceMesh's existing page in Plugins, where you can add the key.
 
@@ -43,7 +47,7 @@ Restart the profile after installing or removing a candidate. Do not install it 
 
 Provider keys are stored through the Harness credential service; the browser receives credential status, not the key. Cloud routes send the audio or text needed for the selected provider. Realtime diagnostic recording is disabled by default. Voice previews can be cached by the app; this beta makes no cache-retention promise.
 
-VoiceMesh dispatches the latest spoken request to the coding Session. GPT-Live orchestration and transcript context stay in its provider configuration rather than becoming a coding-Session user message. When transcript history is enabled, VoiceMesh renders spoken transcripts and a coding dispatch also appears as a Harness user message.
+VoiceMesh dispatches the latest spoken request to the coding Session. GPT-Live orchestration and transcript context stay in its provider configuration rather than becoming a coding-Session user message. When transcript history is enabled, VoiceMesh stores user and assistant speech transcripts in the Harness Session so the Chat view can render them; provider traffic remains in plugin storage. A coding dispatch also appears as a Harness user message.
 
 Do not include API keys, raw conversation logs, or private project content in bug reports. Include the VoiceMesh version, Harness version, operating system, browser, selected provider, and a redacted error message.
 
@@ -57,4 +61,4 @@ See [license](LICENSE) and [notices](NOTICE). Composer attribution is retained i
 
 ## Author
 
-Maintained by [Hopeton Palmer](https://github.com/hopeton2). Built on DeepSeek Harness and VoiceMesh Composer.
+Maintained by [Hopeton Palmer](https://github.com/hopetonp). Built on DeepSeek Harness and VoiceMesh Composer.

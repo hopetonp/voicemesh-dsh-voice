@@ -121,6 +121,8 @@ export interface VoiceConfig {
   responseDetail: 'concise' | 'detailed'
   /** Whether automatic coding-task speech includes coding-agent todo milestones. */
   progressMode: 'outcome' | 'milestones'
+  /** Explain coding results in everyday language when speaking. */
+  plainLanguageSummaries: boolean
   /** Route the reply through a conversational LLM to make it natural to speak. */
   conversationalEnabled: boolean
   /** Legacy preference normalized to false; thinking is disabled by the host. */
@@ -207,6 +209,7 @@ export type VoiceConfigActions = {
   setDeepgramVoiceModel(draft: VoiceConfig, voice: string): void
   setResponseDetail(draft: VoiceConfig, detail: 'concise' | 'detailed'): void
   setProgressMode(draft: VoiceConfig, mode: 'outcome' | 'milestones'): void
+  setPlainLanguageSummaries(draft: VoiceConfig, on: boolean): void
   setConversationalSource(draft: VoiceConfig, source: 'harness' | 'custom'): void
   setConversationalProvider(draft: VoiceConfig, id: string): void
   setConversationalCustomProvider(draft: VoiceConfig, id: string): void
@@ -304,6 +307,7 @@ export const DEFAULT_VOICE_CONFIG: VoiceConfig = {
   grokVoice: 'eve',
   responseDetail: 'concise',
   progressMode: 'outcome',
+  plainLanguageSummaries: false,
   conversationalEnabled: true,
   conversationalThinking: false,
   pipelineContextTurns: 8,
@@ -409,6 +413,7 @@ export function createVoiceConfigHandle(): VoiceConfigHandle {
       setDeepgramVoiceModel: (d, voice: string) => { d.deepgramVoiceModel = voice },
       setResponseDetail: (d, detail: 'concise' | 'detailed') => { d.responseDetail = detail },
       setProgressMode: (d, mode: 'outcome' | 'milestones') => { d.progressMode = mode },
+      setPlainLanguageSummaries: (d, on: boolean) => { d.plainLanguageSummaries = on },
       setConversationalSource: (d, source: 'harness' | 'custom') => {
         const custom = d.conversationalProvider === 'custom'
         if (custom === (source === 'custom')) return
@@ -452,6 +457,7 @@ export function normalizeVoiceConfig(partial: Partial<VoiceConfig> = {}): VoiceC
   }
   out.responseDetail = partial.responseDetail === 'detailed' ? 'detailed' : 'concise'
   out.progressMode = partial.progressMode === 'milestones' ? 'milestones' : 'outcome'
+  out.plainLanguageSummaries = partial.plainLanguageSummaries === true
   out.statusSounds = true
   out.readBack = true
   out.transcriptHistory = true

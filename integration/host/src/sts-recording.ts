@@ -1,9 +1,10 @@
-/** Session-owned realtime history with audio bytes kept in verified immutable storage. */
+/** Realtime history with chat transcripts in the Session and audio bytes in verified immutable storage. */
 import { brandString, type Branded } from '@deepseek-ai/dsh-brand'
 import { z } from 'zod'
 import type { Session } from '@deepseek-ai/dsh-session'
 import type { StsAudioRef, StsAudioStore } from './sts-audio-store.ts'
 import { stsAudioRefSchema } from './sts-audio-store.ts'
+import { appendVoiceEvent } from './voice-session-events.ts'
 
 /** One voice connection's durable history identity. */
 export type StsConversationId = Branded<'voice-sts-conversation'>
@@ -34,7 +35,7 @@ declare module '@deepseek-ai/dsh-session/types' {
   }
 }
 
-/** Persists transcripts and task receipts; optional development storage retains raw provider traffic. */
+/** Persists chat transcripts in the Session and provider traffic in plugin storage. */
 export class StsRecording {
   private pending: { append: () => void; resolve: () => void; reject: (error: unknown) => void }[] = []
   private writing = false
@@ -93,16 +94,16 @@ export class StsRecording {
     const audio = this.audio
     if (audio === undefined) {
       if (direction === 'connection' && typeof event.type === 'string' && (event.type.startsWith('coding-task.') || event.type === 'session.context-restored' || event.type === 'session.finalized' || event.type === 'input.withheld')) {
-        await this.persist(() => { this.session.append('voice/sts/event', { conversationId: this.conversationId, direction, event }) })
+        await this.persist(() => { appendVoiceEvent(this.session, 'voice/sts/event', { conversationId: this.conversationId, direction, event }) })
         signal.throwIfAborted()
       }
       if (direction === 'input' && (event.type === 'session.thinking.append'
         || event.type === 'session.commentary.append' || event.type === 'session.instructions.append')) {
-        await this.persist(() => { this.session.append('voice/sts/event', { conversationId: this.conversationId, direction, event }) })
+        await this.persist(() => { appendVoiceEvent(this.session, 'voice/sts/event', { conversationId: this.conversationId, direction, event }) })
         signal.throwIfAborted()
       }
       if (direction === 'output' && (event.type === 'session.usage.updated' || event.type === 'session.closed')) {
-        await this.persist(() => { this.session.append('voice/sts/event', { conversationId: this.conversationId, direction, event }) })
+        await this.persist(() => { appendVoiceEvent(this.session, 'voice/sts/event', { conversationId: this.conversationId, direction, event }) })
         signal.throwIfAborted()
       }
       return
@@ -150,7 +151,7 @@ export class StsRecording {
       else delete metadata.delta
       data = { conversationId: this.conversationId, direction, event: metadata, audio: { field, ref } }
     }
-    await this.persist(() => { this.session.append('voice/sts/event', data) })
+    await this.persist(() => { appendVoiceEvent(this.session, 'voice/sts/event', data) })
     signal.throwIfAborted()
   }
 

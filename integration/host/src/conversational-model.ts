@@ -8,6 +8,7 @@ import { readVoiceCredential, conversationalBase } from './voice-credentials.ts'
 import { randomUUID } from 'node:crypto'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { StsConversationId } from './sts-recording.ts'
+import { appendVoiceEvent } from './voice-session-events.ts'
 
 const messageSchema = z.object({
   role: z.enum(['system', 'user', 'assistant', 'tool']), content: z.string().nullable(),
@@ -97,7 +98,7 @@ export async function requestVoiceModel(ctx: Context, input: VoiceModelRequest, 
     signal.throwIfAborted()
     if ('error' in found) throw new Error('Linked voice session is unavailable')
     const { signal: _signal, ...recorded } = options
-    found.agent.session.append('voice/sts/event', {
+    appendVoiceEvent(found.agent.session, 'voice/sts/event', {
       conversationId: brandString<StsConversationId>(randomUUID()), direction: 'input',
       event: { type: 'pipeline.model.request', ...recorded },
     })
@@ -120,7 +121,7 @@ async function requestCustomModel(ctx: Context, input: VoiceModelRequest, signal
   if (input.sessionId) {
     const found = await ctx.sessionController.resolveAgent(SessionId(input.sessionId))
     if ('error' in found) throw new Error('Linked voice session is unavailable')
-    found.agent.session.append('voice/sts/event', { conversationId: brandString<StsConversationId>(randomUUID()), direction: 'input', event: { type: 'pipeline.model.request', provider: 'custom', model, ...body } })
+    appendVoiceEvent(found.agent.session, 'voice/sts/event', { conversationId: brandString<StsConversationId>(randomUUID()), direction: 'input', event: { type: 'pipeline.model.request', provider: 'custom', model, ...body } })
   }
   const key = await readVoiceCredential(ctx, 'conversational', base)
   const send = (reasoning: boolean): Promise<Response> => fetch(base + '/chat/completions', {

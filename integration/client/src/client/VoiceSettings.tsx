@@ -6,7 +6,7 @@ import { thinkingLevelLabel } from './locales.ts'
 /** Voice preferences, write-only host credential setup, and provider diagnostics. */
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { IconChevronDownOutlineRegular, Button, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import { resolveStsSettings } from './sts-settings.ts'
 import type { VoiceConfig, BakedVoiceConfigActions } from './config.ts'
@@ -58,10 +58,9 @@ export interface VoiceSettingsInjected extends VoiceCatalogActions {
 
 /** Full props of the setup page. */
 export type VoiceSettingsProps =
-  PropsRuntime<'plugins.bundle.config'>
-  & VoiceSettingsInjected
+  VoiceSettingsInjected
   & PropsLocale<'voice'> & {
-    /** Open the Speech & Voice card when the voice button sends a user here. */
+    /** Open the Voice provider card when the voice button sends a user here. */
     openSpeech?: boolean
   }
 
@@ -125,6 +124,13 @@ export function VoiceSettings({
   const [geminiKey, setGeminiKey] = useState('')
   const [quickPicker, setQuickPicker] = useState(false)
   const [picker, setPicker] = useState<'sts' | 'tts' | null>(null)
+  const [activeSection, setActiveSection] = useState<'general' | 'provider' | 'conversation' | null>('provider')
+  const toggleSection = (section: 'general' | 'provider' | 'conversation'): void => {
+    setActiveSection(current => current === section ? null : section)
+  }
+  useEffect(() => {
+    if (openSpeech) setActiveSection('provider')
+  }, [openSpeech])
   const activeMode = config.voiceMode === 'sts' ? 'sts' : 'tts'
   const ttsVoice = pipelineVoice(config)
   const ttsProvider = config.ttsEngine === 'gemini' ? 'gemini' : config.ttsEngine === 'openai' ? 'openai' : config.ttsEngine === 'fish' ? 'fish' : config.ttsEngine === 'kokoro' ? 'kokoro' : config.ttsEngine === 'grok' ? 'xai' : 'deepgram'
@@ -525,31 +531,8 @@ export function VoiceSettings({
       <h2 className={css.heading}>{t('section.heading')}</h2>
       <p className={css.hint}>{t('section.hint')}</p>
 
-      <VoiceCard t={t} title={t('settings.controls')} desc={t('settings.controlsHint')}>
-        <SelectField id="voice-response-detail" label={t('settings.responseDetail')} value={config.responseDetail}
-          options={[{ value: 'concise', label: t('settings.concise') }, { value: 'detailed', label: t('settings.detailed') }]}
-          onChange={value => actions.setResponseDetail(value)} />
-        <SelectField id="voice-progress-mode" label={t('settings.progressMode')} value={config.progressMode}
-          options={[{ value: 'outcome', label: t('settings.outcome') }, { value: 'milestones', label: t('settings.milestones') }]}
-          onChange={value => actions.setProgressMode(value)} />
-
-        {!(config.voiceMode === 'sts' && config.stsProvider === 'openai-live') && (
-          <div className={css.field}>
-            <ToggleRow label={t('settings.endConversation')} desc={t('settings.endConversationHint')}
-              checked={config.endConversationEnabled}
-              onChange={() => { actions.setEndConversationEnabled(!config.endConversationEnabled) }} />
-          </div>
-        )}
-
-        <div className={css.field}>
-          <ToggleRow
-            label={t('settings.backchannel')}
-            desc={t(nativeBackchannels ? 'settings.backchannelNativeHint' : 'settings.backchannelHint')}
-            checked={config.backchannelEnabled}
-            onChange={() => { actions.setBackchannelEnabled(!config.backchannelEnabled) }}
-          />
-        </div>
-
+      <VoiceCard t={t} open={activeSection === 'general'} onToggle={() => toggleSection('general')}
+        title={t('settings.controls')} desc={t('settings.controlsHint')}>
         <div className={css.field}>
           <ToggleRow
             label={t('settings.assistantOrb')}
@@ -558,18 +541,6 @@ export function VoiceSettings({
             onChange={() => { actions.setAssistantOrbEnabled(!config.assistantOrbEnabled) }}
           />
         </div>
-
-        {config.backchannelEnabled && config.voiceMode === 'pipeline' && (
-          <SliderRow
-            label={t('settings.volume')}
-            value={config.backchannelVolume}
-            min={0.1}
-            max={1}
-            step={0.05}
-            format={v => `${Math.round(v * 100)}%`}
-            onChange={v => actions.setBackchannelVolume(round2(v))}
-          />
-        )}
 
         <Subsection t={t} title={t('settings.wakeStandbyGroup')}>
           <Subsection t={t} title={t('settings.wakeGroup')}>
@@ -617,11 +588,11 @@ export function VoiceSettings({
             />
           </Subsection>
         </Subsection>
-
       </VoiceCard>
 
       {credentialError && <p role="alert">{t('key.hostError')}</p>}
-      <VoiceCard t={t} initiallyOpen={openSpeech} title={t('speech.title')} desc={`${activeProvider} · ${t(activeMode === 'sts' ? 'speech.sts' : 'speech.pipeline')}`}
+      <VoiceCard t={t} open={activeSection === 'provider'} onToggle={() => toggleSection('provider')}
+        title={t('speech.title')} desc={`${activeProvider} · ${t(activeMode === 'sts' ? 'speech.sts' : 'speech.pipeline')}`}
         quickAction={activeMode === 'sts' || config.ttsEngine !== '' ? <SelectedVoiceControl label={activeMode === 'tts' && (config.ttsEngine === 'kokoro' || config.ttsEngine === 'fish') && localVoiceLabel ? localVoiceLabel : activeVoice} key={`${activeMode}:${activeProvider}:${activeVoice}:${selectedSts.model}`}
           selection={activeMode === 'sts' ? { provider: selectedSts.provider, mode: 'sts', model: selectedSts.model }
             : { provider: ttsProvider, mode: 'tts', model: pipelineModel(config, 'tts') }}
@@ -844,8 +815,50 @@ export function VoiceSettings({
         </>}
       </VoiceCard>
 
+      <VoiceCard t={t} open={activeSection === 'conversation'} onToggle={() => toggleSection('conversation')}
+        title={t('settings.conversation')} desc={t('settings.conversationHint')}>
+        <SelectField id="voice-response-detail" label={t('settings.responseDetail')} value={config.responseDetail}
+          options={[{ value: 'concise', label: t('settings.concise') }, { value: 'detailed', label: t('settings.detailed') }]}
+          onChange={value => actions.setResponseDetail(value)} />
+        <SelectField id="voice-progress-mode" label={t('settings.progressMode')} value={config.progressMode}
+          options={[{ value: 'outcome', label: t('settings.outcome') }, { value: 'milestones', label: t('settings.milestones') }]}
+          onChange={value => actions.setProgressMode(value)} />
 
+        <div className={css.field}>
+          <ToggleRow label={t('settings.plainLanguage')} desc={t('settings.plainLanguageHint')}
+            checked={config.plainLanguageSummaries}
+            onChange={() => { actions.setPlainLanguageSummaries(!config.plainLanguageSummaries) }} />
+        </div>
 
+        {!(config.voiceMode === 'sts' && config.stsProvider === 'openai-live') && (
+          <div className={css.field}>
+            <ToggleRow label={t('settings.endConversation')} desc={t('settings.endConversationHint')}
+              checked={config.endConversationEnabled}
+              onChange={() => { actions.setEndConversationEnabled(!config.endConversationEnabled) }} />
+          </div>
+        )}
+
+        <div className={css.field}>
+          <ToggleRow
+            label={t('settings.backchannel')}
+            desc={t(nativeBackchannels ? 'settings.backchannelNativeHint' : 'settings.backchannelHint')}
+            checked={config.backchannelEnabled}
+            onChange={() => { actions.setBackchannelEnabled(!config.backchannelEnabled) }}
+          />
+        </div>
+
+        {config.backchannelEnabled && config.voiceMode === 'pipeline' && (
+          <SliderRow
+            label={t('settings.volume')}
+            value={config.backchannelVolume}
+            min={0.1}
+            max={1}
+            step={0.05}
+            format={v => `${Math.round(v * 100)}%`}
+            onChange={v => actions.setBackchannelVolume(round2(v))}
+          />
+        )}
+      </VoiceCard>
     </div>
   )
 }
@@ -878,6 +891,8 @@ function VoiceCard({
   desc,
   children,
   initiallyOpen = false,
+  open: controlledOpen,
+  onToggle,
   quickAction,
   t,
 }: {
@@ -886,9 +901,12 @@ function VoiceCard({
   children: ReactNode
   /** Whether the card body starts expanded. */
   initiallyOpen?: boolean
+  open?: boolean
+  onToggle?: () => void
   quickAction?: ReactNode
 } & PropsLocale<'voice'>): JSX.Element {
-  const [open, setOpen] = useState(initiallyOpen)
+  const [localOpen, setLocalOpen] = useState(initiallyOpen)
+  const open = controlledOpen ?? localOpen
   return (
     <section className={`${css.card}${open ? ` ${css.cardOpen}` : ''}`}>
       <div className={`${css.cardTop}${quickAction === undefined ? '' : ` ${css.cardTopWithVoice}`}`}>
@@ -897,7 +915,7 @@ function VoiceCard({
           className={css.cardHeader}
           aria-expanded={open}
           aria-label={`${t(open ? 'settings.collapse' : 'settings.expand')}: ${title}`}
-          onClick={() => setOpen(!open)}
+          onClick={() => onToggle ? onToggle() : setLocalOpen(!open)}
         >
           <span className={css.cardHeadText}>
             <span className={css.cardTitle}>{title}</span>

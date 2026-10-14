@@ -1,6 +1,6 @@
 {
   "name": "@voicemesh/dsh-voice",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "private": true,
   "type": "module",
   "icon": "./icon.svg",
@@ -16,13 +16,13 @@
   },
   "author": {
     "name": "Hopeton Palmer",
-    "url": "https://github.com/hopeton2"
+    "url": "https://github.com/hopetonp"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hopeton2/voicemesh-dsh-voice.git"
+    "url": "git+https://github.com/hopetonp/voicemesh-dsh-voice.git"
   },
   "bugs": {
-    "url": "https://github.com/hopeton2/voicemesh-dsh-voice/issues"
+    "url": "https://github.com/hopetonp/voicemesh-dsh-voice/issues"
   }
 }

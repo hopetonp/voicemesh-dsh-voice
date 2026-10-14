@@ -6,13 +6,15 @@ import { createHash } from 'node:crypto';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 if (!process.argv[2]) throw new Error('Provide the built Harness checkout path.');
 const harness = await realpath(process.argv[2]);
+if (!process.env.VOICEMESH_COMPOSER_DIR) throw new Error('Set VOICEMESH_COMPOSER_DIR to the Composer checkout to stage.');
+const composer = await realpath(process.env.VOICEMESH_COMPOSER_DIR);
 const stage = join(root, '.release', 'staging-' + Date.now());
 await mkdir(stage, { recursive: true });
 const components = [
   ['client', join(harness, 'packages/client/voice-client')],
   ['host', join(harness, 'packages/host/voice-host')],
   ['harness-policy', join(harness, 'plugins/voice/harness-policy')],
-  ['composer', await realpath(join(harness, 'packages/host/voice-host/node_modules/@voicemesh/composer'))],
+  ['composer', composer],
 ];
 const provenance = [];
 for (const [label, source] of components) {

@@ -12,19 +12,19 @@ The current publishable tarball passed a bounded archive scan and keyless setup-
 
 ## Prepare a candidate
 
-Build the required components, then stage against the intended Harness checkout:
+Build the required components, then set `VOICEMESH_COMPOSER_DIR` to the intended built Composer checkout. Both staging and packaging use that checkout rather than the Composer tarball installed in Harness. Stage against the intended Harness checkout:
 
 ```sh
-npm run stage -- /path/to/deepseek-harness
+VOICEMESH_COMPOSER_DIR=/path/to/built/voicemesh-composer npm run stage -- /path/to/deepseek-harness
 ```
 
 Package only after reviewing the staged result:
 
 ```sh
-npm run package -- /path/to/built/harness
+VOICEMESH_COMPOSER_DIR=/path/to/built/voicemesh-composer npm run package -- /path/to/built/harness
 ```
 
-When the release checks are ready, build the publishable candidate from the same source with `npm run package -- /path/to/built/harness --public`. The root package will omit `private` and set public npm access. Packaging does not publish; review the new tarball and its SHA-256 before `npm publish <tarball> --tag beta --access public`.
+When the release checks are ready, build the publishable candidate from the same source with `VOICEMESH_COMPOSER_DIR=/path/to/built/voicemesh-composer npm run package -- /path/to/built/harness --public`. The root package will omit `private` and set public npm access. Packaging does not publish; review the new tarball and its SHA-256 before `npm publish <tarball> --tag beta --access public`.
 
 ## Required release review
 

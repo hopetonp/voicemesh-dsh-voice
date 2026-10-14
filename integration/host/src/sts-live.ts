@@ -19,6 +19,7 @@ import { WebSocketServer, WebSocket } from 'ws'
 import { z } from 'zod'
 import { StsAudioStore } from './sts-audio-store.ts'
 import { StsRecording, type StsConversationId } from './sts-recording.ts'
+import { voiceSessionEvents } from './voice-session-events.ts'
 import type { StsWebRtcCall } from '@voicemesh/composer/server'
 import { openStsChannel, type StsChannel, type StsChannelSettings } from '@voicemesh/composer/server'
 import { xaiStsProvider } from '@voicemesh/composer/server'
@@ -34,6 +35,8 @@ const startSchema = z.strictObject({
   selection: z.enum(['linked', 'other', 'none', 'unknown']).default('unknown'),
   model: z.string().trim().min(1).max(128),
   responseDetail: z.enum(['concise', 'detailed']).default('concise'),
+  progressMode: z.enum(['outcome', 'milestones']).default('outcome'),
+  plainLanguageSummaries: z.boolean().default(false),
   transcriptHistory: z.boolean().default(false),
   backchannelEnabled: z.boolean().default(false),
   endConversationEnabled: z.boolean().default(false),
@@ -47,6 +50,8 @@ const inputSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('voice.transcript-history'), enabled: z.boolean() }),
   z.strictObject({ type: z.literal('voice.playback-caption'), responseId: z.string(), length: z.number().int().nonnegative(), final: z.boolean(), interrupted: z.boolean() }),
   z.strictObject({ type: z.literal('voice.playback-idle'), responseId: z.string() }),
+  z.strictObject({ type: z.literal('voice.live-playback'), speaking: z.boolean() }),
+  z.strictObject({ type: z.literal('voice.result-played'), turn: z.number().int().positive() }),
   z.strictObject({ type: z.literal('voice.stop') }),
   z.strictObject({ type: z.literal('voice.read-back'), turn: z.number().int().positive().optional() }),
   z.strictObject({ type: z.literal('input_audio_buffer.append'), audio: z.string().min(1) }),
@@ -87,7 +92,7 @@ function lastOutput(session: Session, maxChars: number, turn?: number): SavedOut
 /** Return bounded, completed speech-only history from one durable coding session. */
 function completedTranscriptHistory(session: Session, maxBytes: number): readonly TranscriptHistoryRow[] {
   const completed = new Map<string, TranscriptHistoryRow>()
-  for (const item of session.ownEvents()) {
+  for (const item of voiceSessionEvents(session)) {
     if (item.type !== 'voice/sts/transcript' || item.data.phase !== 'final' || item.data.interrupted === true) continue
     const key = `${item.data.conversationId}:${item.data.streamId}`
     completed.delete(key)
@@ -184,6 +189,7 @@ export function mountStsLive(ctx: Context, config: StsLiveConfig): void {
     let responseActive = false
     let userSpeaking = false
     let playbackBusy = false
+    let nativePlaybackSpeaking = false
     let playbackResponse: string | undefined
     let readBackPending = false
     let readBackTurn: number | undefined
@@ -320,6 +326,11 @@ export function mountStsLive(ctx: Context, config: StsLiveConfig): void {
         } else if (parsed.data.type === 'voice.playback-idle') {
           await recorder?.record('connection', parsed.data, lifetime.signal)
           if (parsed.data.responseId === playbackResponse) { playbackBusy = false; announce() }
+        } else if (parsed.data.type === 'voice.live-playback') {
+          nativePlaybackSpeaking = parsed.data.speaking
+          announce()
+        } else if (parsed.data.type === 'voice.result-played') {
+          await recorder?.record('connection', parsed.data, lifetime.signal)
         } else if (parsed.data.type === 'voice.read-back') {
           await recorder?.record('connection', parsed.data, lifetime.signal)
           if (live !== undefined && readOutput !== undefined) {
@@ -345,7 +356,7 @@ export function mountStsLive(ctx: Context, config: StsLiveConfig): void {
     const announce = (): void => {
       actions = actions.then(async () => {
         if (lifetime.signal.aborted) return
-        const eligible = (): boolean => !renewing && !endRequested && !responseActive && !userSpeaking && !playbackBusy &&
+        const eligible = (): boolean => !renewing && !endRequested && !responseActive && !userSpeaking && !playbackBusy && !nativePlaybackSpeaking &&
           !lifetime.signal.aborted
         if (live !== undefined) { await live.completed(); return }
         if (channel === undefined || tasks === undefined || !eligible()) return
@@ -409,7 +420,8 @@ export function mountStsLive(ctx: Context, config: StsLiveConfig): void {
       const key = await readVoiceCredential(ctx, startSettings.provider === 'openai-live' ? 'openai-sts' : `${startSettings.provider}-sts`)
       if (!key) throw new Error('STS credential is not configured')
       const settings = { ...startSettings, key }
-      reportInstructions = spokenResponseInstructions(settings.responseDetail)
+      reportInstructions = spokenResponseInstructions(settings.responseDetail) + (settings.plainLanguageSummaries
+        ? ' When explaining coding results or saved coding output, use everyday language and explain technical terms when needed. Keep file names, commands, errors, outcomes, and details the user explicitly requests accurate.' : '')
       const transcriptionModel = settings.provider === 'openai' ? await resolveOpenaiStsAccess(settings.key, settings.model, lifetime.signal) : undefined
       const provider = settings.provider === 'openai-live' ? openaiLiveProvider : settings.provider === 'gemini' ? geminiStsProvider : settings.provider === 'openai' ? openaiStsProvider : xaiStsProvider
       transcriptHistory = settings.transcriptHistory

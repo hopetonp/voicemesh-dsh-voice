@@ -49,6 +49,7 @@ export function createStsController(config: () => VoiceConfig, voice: VoiceRunti
     start: (sessionId, settings, _provider, offer) => {
       const provider = resolveStsSettings(settings)
       return { ...(offer === undefined ? {} : { offer }), type: 'start', responseDetail: settings.responseDetail, progressMode: settings.progressMode,
+        plainLanguageSummaries: settings.plainLanguageSummaries,
         sessionId, ...(provider.provider === 'openai-live' ? { selection: selection() } : {}), provider: provider.provider, model: provider.model, voice: provider.voice, silenceSec: settings.stsSilenceSec,
         thinking: settings.stsThinking, endConversationEnabled: settings.endConversationEnabled,
         transcriptHistory: settings.transcriptHistory, backchannelEnabled: settings.backchannelEnabled }
