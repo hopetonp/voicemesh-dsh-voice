@@ -22,6 +22,10 @@ Restart the Web profile after installing or updating the plugin.
 
 In DeepSeek Harness, open **Plugins → Add plugin** and paste the [GitHub package URL](https://github.com/hopetonp/voicemesh-dsh-voice/releases/download/v0.1.0-beta.4/voicemesh-dsh-voice-0.1.0-beta.4.tgz). Install it, restart Harness, then enable **Voice Conversation by Hopeton** in **Plugins**.
 
+To have an AI agent install it on your computer, give it this request:
+
+> Read https://github.com/hopetonp/voicemesh-dsh-voice/blob/main/INSTALL_WITH_AGENT.md. Download the prebuilt plugin from the GitHub release, verify its checksum, install it in my DeepSeek Harness Web or Desktop app, and confirm that its settings editor opens. Do not build from source.
+
 Install only one voice integration that contributes a microphone control to the chat composer.
 
 ## Set up voice
