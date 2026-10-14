@@ -26,5 +26,43 @@
   "homepage": "https://github.com/hopetonp/voicemesh-dsh-voice#readme",
   "bugs": {
     "url": "https://github.com/hopetonp/voicemesh-dsh-voice/issues"
+  },
+  "files": [
+    "icon.svg",
+    "lib",
+    "locale",
+    "cordis.patch.yml",
+    "provenance.json",
+    "README.md",
+    "LICENSE",
+    "LICENSE-COMPOSER",
+    "NOTICE",
+    "THIRD_PARTY_LICENSES"
+  ],
+  "exports": {
+    ".": "./lib/index.js",
+    "./host": "./lib/host.js",
+    "./client": "./lib/client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./host/locale/*.json": "./locale/host/*.json",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-chat",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-session"
+      ],
+      "platform": "web"
+    }
   }
 }

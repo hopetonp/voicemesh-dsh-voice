@@ -1,0 +1,14 @@
+{
+  "name": "@dsh-voice/local-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Optional native Vosk and Kokoro inference worker for the DSH voice plugin.",
+  "exports": {
+    "./worker": "./worker.mjs"
+  },
+  "dependencies": {
+    "vosk-koffi": "1.1.1",
+    "sherpa-onnx-node": "1.13.8"
+  }
+}

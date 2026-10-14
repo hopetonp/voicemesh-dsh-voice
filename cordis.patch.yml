@@ -1,0 +1,28 @@
+# Connection RPC registration accesses webServer on its owning context.
+- id: connection
+  inject: [webRuntime, webServer]
+- insert:
+    - id: voice-host
+      name: '@voicemesh/dsh-voice/host'
+      config:
+        path: /api/voice/stt
+        sttStreamPath: /api/voice/stt/stream
+        sttWsPath: /api/voice/stt/ws
+        ttsPath: /api/voice/tts
+        healthPath: /api/voice/health
+        lastOutputPath: /api/voice/last-output
+        deepgramKey: DEEPGRAM_API_KEY
+        maxBodyBytes: 33554432
+    # Mount the wrapper root: a profile resolver can address this installed package,
+    # while the bundled implementation package remains private to the wrapper.
+    - id: voice-client
+      name: '@voicemesh/dsh-voice'
+      config:
+        path: /api/voice/stt
+        sttStreamPath: /api/voice/stt/stream
+        sttWsPath: /api/voice/stt/ws
+        ttsPath: /api/voice/tts
+        healthPath: /api/voice/health
+        lastOutputPath: /api/voice/last-output
+        deepgramKey: DEEPGRAM_API_KEY
+        maxBodyBytes: 33554432
