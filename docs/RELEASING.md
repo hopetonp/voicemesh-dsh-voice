@@ -32,7 +32,7 @@ With dedicated revocable test credentials, verify a live voice turn, interruptio
 
 Before publication, confirm `npm whoami` identifies an account authorized to publish the `@voicemesh` scope. Resolve the repository URL in package metadata: the linked GitHub repository must be accessible to intended npm users, or the metadata must point to an accessible support location. Obtain the owner's approval of the reviewed archive and public release.
 
-Create a public GitHub prerelease tagged `v0.1.0-beta.4` and attach the exact reviewed archive as `voicemesh-dsh-voice-0.1.0-beta.4.tgz` with a `SHA256SUMS` file. Download the release assets, verify the checksum against the reviewed archive, and verify that the package URL installs through **Plugins → Add plugin**. The GitHub source archive is not an installable package.
+For GitHub deployment, copy the reviewed archive into `.release/assets/<version-tag>/` beside `SHA256SUMS` and `SOURCE_COMMIT`. The checksum file contains one SHA-256 entry for the archive; `SOURCE_COMMIT` names the commit at the version tag. Force-add these ignored release inputs, commit them, and run **Deploy GitHub release bundle** with that tag. The workflow checks the tag, manifest, and checksum, then creates the release if needed or replaces its `.tgz` and `SHA256SUMS` assets and verifies the downloaded copies. The GitHub source archive is not an installable package.
 
 ```sh
 npm publish /absolute/path/to/voicemesh-dsh-voice-0.1.0-beta.4.tgz --tag beta --access public
