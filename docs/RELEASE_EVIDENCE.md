@@ -1,6 +1,6 @@
 # Beta release evidence
 
-This record distinguishes a historical local artifact from the frozen beta candidate. No item below authorizes publication.
+This record preserves historical candidates and the latest preparation result at the end. No item below authorizes publication.
 
 ## Historical v60 review — 2026-09-29
 
@@ -179,3 +179,15 @@ The current publishable tarball is `/Users/hgp/DeepSeek/voicemesh-dsh-voice/.rel
 The archive was installed only in a new isolated stock-Web home, `/Users/hgp/.dsh-voice-public-mic-20261006`, on port 3910, leaving the 3906 live-test profile untouched. In the authenticated browser, tapping Start voice chat without the selected GPT Live key showed the missing OpenAI API key dialog; Go to setup opened the existing Voice settings form with Speech & Voice expanded. After selecting Gemini Live and closing the dialog, another voice-button tap named the missing Gemini API key. No provider call or key entry was made. The settings form currently opens inside the popup because published Harness navigation is available to plugins only during initial activation; it does not navigate to the Plugins detail page. The user's acceptance of that placement is pending.
 
 Do not publish while any frozen-candidate entry is pending or while the rights, notices, and npm scope evidence remain unresolved. A candidate that repeats the v60 content or manifest failures is rejected.
+
+## Public beta.3 preparation — 2026-10-13
+
+The source package is `@voicemesh/dsh-voice@0.1.0-beta.3` at plugin commit `6da0038`. Packaging used clean Harness source commit `a2e96135c85e4b7ae6fb20175517c8bcb14ee424` for voice build inputs and the canonical Composer checkout at `/Users/hgp/Projects/voicemesh-composer`. Composer was at commit `eecb2b8` with uncommitted changes; its built runtime hash was `6d9585f5af628b650f3cb3462612b216c5d639fd57c15069039f2b6b9f896faf`. Node was `v26.8.2`. The published Harness runtime used for the separate compatibility smoke was `@deepseek-ai/dsh@0.2.0-rc.2`.
+
+The clean-source preflight tarball is `/Users/hgp/DeepSeek/voicemesh-dsh-voice/.release/package-1791942507190/voicemesh-dsh-voice-0.1.0-beta.3.tgz`, SHA-256 `49db5ae091f7ad5fc027c8c921ff5b767d4dfdaf4487647cea48d452a4e817c9`. Its public-access manifest omits `private`, names the host and client components at beta.3, and includes MIT license and support metadata. The packaged locale title is **Voice Conversation**. The 24-file archive contains README, icon, locale, provenance, root and Composer licenses, NOTICE, and generated third-party license texts. A bounded scan found no TypeScript source, declarations, source maps, build directories, common credential patterns, absolute developer paths, or `sourceMappingURL` directives. This scan does not establish the absence of every possible secret.
+
+Composer's bundle, type, and boundary build passed; the plugin source check passed for 124 files; clean Harness runtime bundles and the plugin's public packaging command succeeded. The clean Harness `build:lib:host` and `build:lib:client` TypeScript commands reported errors, but their diagnostics were not retained, so their relevance to the package is unknown. The published `dsh-v0.2.0-rc.2` source tag does not contain the voice client, host, or local-runtime build inputs and could not be used as the packaging checkout.
+
+The exact tarball installed and enabled in a fresh isolated Web profile running published Harness `0.2.0-rc.2`. Its config had voice-host and voice-client rows; the Plugins panel showed **Voice Conversation v0.1.0-beta.3**, both components running, the settings editor, and a **Start voice chat** control in an empty composer. The keyless setup probe passed six provider-status requests and local-model discovery and received 401 for unauthenticated credential status. No provider key, microphone grant, paid call, or current user profile was used; the disposable server and profile were removed.
+
+This remains a preparation artifact, not an approved npm release. The Composer source changes must be reviewed and committed or rebuilt from a clean reviewed state; the clean Harness TypeScript failures need classification; the exact archive has no credentialed live-turn, interruption, standby, transcript-history, reconnection, or official Desktop smoke result. `npm whoami` returned `ENEEDAUTH`, so `@voicemesh` publication rights are unverified. The GitHub source repository is private pending its planned public release. No npm publication or GitHub visibility change has occurred.

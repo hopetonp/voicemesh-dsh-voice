@@ -4,7 +4,7 @@ This procedure prepares the public npm beta of `@voicemesh/dsh-voice`. The sourc
 
 ## Select release inputs
 
-Use the single VoiceMesh Composer checkout at `/Users/hgp/Projects/voicemesh-composer`. Build from reviewed, committed Composer and plugin source states. Select a clean Harness checkout corresponding to the published Harness version used for compatibility testing. Record the three source revisions, Composer build hash from `provenance.json`, Harness version, and Node version. Do not use an older Composer tarball installed in Harness as the build input.
+Use the single VoiceMesh Composer checkout at `/Users/hgp/Projects/voicemesh-composer`. Build from reviewed, committed Composer and plugin source states. Select a clean, pinned Harness source checkout containing the voice build dependencies required by the packager; the published `dsh-v0.2.0-rc.2` source tag does not contain those paths. Test runtime compatibility separately with published Harness `0.2.0-rc.2`. Record the three source revisions, Composer build hash from `provenance.json`, Harness version, and Node version. Do not use an older Composer tarball installed in Harness as the build input.
 
 The current npm release target is `0.1.0-beta.3`. The npm package name and version are immutable after publication; create a new prerelease version if the candidate content changes after publication.
 
