@@ -6,7 +6,7 @@ This procedure prepares the public npm beta of `@voicemesh/dsh-voice`. The sourc
 
 Use the single VoiceMesh Composer checkout at `/Users/hgp/Projects/voicemesh-composer`. Build from reviewed, committed Composer and plugin source states. Select a clean, pinned Harness source checkout containing the voice build dependencies required by the packager; the published `dsh-v0.2.0-rc.2` source tag does not contain those paths. Test runtime compatibility separately with published Harness `0.2.0-rc.2`. Record the three source revisions, Composer build hash from `provenance.json`, Harness version, and Node version. Do not use an older Composer tarball installed in Harness as the build input.
 
-The current npm release target is `0.1.0-beta.3`. The npm package name and version are immutable after publication; create a new prerelease version if the candidate content changes after publication.
+The current npm release target is `0.1.0-beta.4`. The npm package name and version are immutable after publication; create a new prerelease version if the candidate content changes after publication.
 
 ## Build the candidate
 
@@ -33,8 +33,8 @@ With dedicated revocable test credentials, verify a live voice turn, interruptio
 Before publication, confirm `npm whoami` identifies an account authorized to publish the `@voicemesh` scope. Resolve the repository URL in package metadata: the linked GitHub repository must be accessible to intended npm users, or the metadata must point to an accessible support location. Obtain the owner's approval of the reviewed archive and public release.
 
 ```sh
-npm publish /absolute/path/to/voicemesh-dsh-voice-0.1.0-beta.3.tgz --tag beta --access public
+npm publish /absolute/path/to/voicemesh-dsh-voice-0.1.0-beta.4.tgz --tag beta --access public
 npm view @voicemesh/dsh-voice version dist-tags --json
 ```
 
-After publication, install `@voicemesh/dsh-voice@0.1.0-beta.3` from the registry in a fresh profile and repeat the keyless plugin activation check. Record the registry version, beta dist-tag, package integrity, and install result in the release evidence. If the release must be withdrawn from normal discovery, move the `beta` dist-tag to a reviewed version and deprecate the affected version; do not assume published npm bytes can be replaced.
+After publication, install `@voicemesh/dsh-voice@0.1.0-beta.4` from the registry in a fresh profile and repeat the keyless plugin activation check. Record the registry version, beta dist-tag, package integrity, and install result in the release evidence. If the release must be withdrawn from normal discovery, move the `beta` dist-tag to a reviewed version and deprecate the affected version; do not assume published npm bytes can be replaced.
