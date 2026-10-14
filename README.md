@@ -2,19 +2,17 @@
 
 VoiceMesh adds live voice conversations to DeepSeek Harness. Choose a realtime speech provider, or use a pipeline that combines speech recognition, a conversational model, and speech synthesis.
 
-**Release status:** `0.1.0-beta.3` is being prepared for public npm distribution. The plugin is displayed as **Voice Conversation**; its beta status is in the version. The repository release record identifies the exact archive and Harness versions tested before publication.
+The plugin appears as **Voice Conversation** in Harness. The current prerelease version is `0.1.0-beta.3`.
 
-## Install
+## Installation
 
-After the beta is published, install it from npm in a supported DeepSeek Harness profile. For Web:
+Install the beta from npm in a supported DeepSeek Harness profile. For Web:
 
 ```sh
 dsh plugin --profile web add @voicemesh/dsh-voice@0.1.0-beta.3
 ```
 
 For Desktop, open **Plugins → Add plugin**, enter `@voicemesh/dsh-voice@0.1.0-beta.3`, and install it. Restart the app or Web profile after installation or an update. In **Plugins**, enable **Voice Conversation** and open its settings editor. Install only one voice integration that contributes a microphone control to the chat composer.
-
-Until npm publication, maintainers can install the exact reviewed tarball named in the repository release record. Do not substitute a different archive with the same version.
 
 ## Set up voice
 
@@ -47,17 +45,11 @@ dsh plugin --profile web remove @voicemesh/dsh-voice
 
 For Desktop, remove the plugin from **Plugins**. Restart after removal.
 
-## Data handling
+## Security
 
-Provider keys are stored through the Harness credential service; the browser receives credential status, not the key. Cloud routes send the audio or text needed for the selected provider. Realtime diagnostic recording is disabled by default. Voice previews can be cached by the app; this beta makes no cache-retention promise.
+DeepSeek Harness stores your provider keys. The settings editor tells you if a key is saved without showing the key. The providers you choose receive the audio or text needed for voice chat.
 
-VoiceMesh dispatches the latest spoken request to the coding Session. GPT-Live orchestration and transcript context stay in its provider configuration rather than becoming a coding-Session user message. When transcript history is enabled, VoiceMesh stores user and assistant speech transcripts in the Harness Session so the Chat view can render them; provider traffic remains in plugin storage. A coding dispatch also appears as a Harness user message.
-
-Do not include API keys, raw conversation logs, or private project content in bug reports. Include the VoiceMesh version, Harness version, operating system, browser, selected provider, and a redacted error message.
-
-## Beta limits
-
-The public candidate must pass exact-archive release checks before publication. Earlier private builds ran in Web and Desktop, but their results do not establish live-provider behavior for a newly packed archive. Local speech engines also require model downloads during setup.
+## Licenses
 
 The package includes a generated inventory of bundled third-party license texts. See [license](LICENSE), [notices](NOTICE), and [Composer license](LICENSE-COMPOSER).
 
