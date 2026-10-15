@@ -1,0 +1,42 @@
+name: Publish npm beta
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing source tag and reviewed archive to publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-beta-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+      - name: Install npm with trusted publishing support
+        run: npm install --global npm@11.21.0
+      - name: Verify reviewed archive
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$ ]] || exit 1
+          node scripts/deploy-github-release.mjs "$RELEASE_TAG" --verify-only
+      - name: Publish beta
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: npm publish ".release/assets/${RELEASE_TAG}/voicemesh-dsh-voice-${RELEASE_TAG#v}.tgz" --tag beta --access public --ignore-scripts

@@ -30,13 +30,10 @@ With dedicated revocable test credentials, verify a live voice turn, interruptio
 
 ## Publish to GitHub and npm
 
-Before publication, confirm `npm whoami` identifies an account authorized to publish the `@voicemesh` scope. Resolve the repository URL in package metadata: the linked GitHub repository must be accessible to intended npm users, or the metadata must point to an accessible support location. Obtain the owner's approval of the reviewed archive and public release.
+Before publication, resolve the repository URL in package metadata: the linked GitHub repository must be accessible to intended npm users, or the metadata must point to an accessible support location. Obtain the owner's approval of the reviewed archive and public release. Configure npm's trusted publisher for `@voicemesh/dsh-voice` with GitHub owner `hopetonp`, repository `voicemesh-dsh-voice`, workflow filename `publish-npm-beta.yml`, and direct `npm publish` permission. The workflow uses GitHub's OIDC identity, so local npm login and stored publish tokens are unnecessary.
 
 For GitHub deployment, copy the reviewed archive into `.release/assets/<version-tag>/` beside `SHA256SUMS` and `SOURCE_COMMIT`. The checksum file contains one SHA-256 entry for the archive; `SOURCE_COMMIT` names the commit at the version tag. Force-add these ignored release inputs, commit them, and run **Deploy GitHub release bundle** with that tag. The workflow checks the tag, manifest, and checksum, replaces the release `.tgz` and `SHA256SUMS` assets, and verifies the downloads. It also copies the prebuilt bundle into the repository and pushes the installable package files to `main`, so Harness can install the repository URL directly. GitHub's generated **Source code** archives for older tags remain source only.
 
-```sh
-npm publish /absolute/path/to/voicemesh-dsh-voice-0.1.0-beta.8.tgz --tag beta --access public
-npm view @voicemesh/dsh-voice version dist-tags --json
-```
+Run **Publish npm beta** on `main` with input `v0.1.0-beta.8` after the GitHub release succeeds. The workflow verifies the committed archive against the tag and checksum, then publishes that exact archive with the `beta` dist-tag. Check the registry afterward with `npm view @voicemesh/dsh-voice version dist-tags --json`.
 
 After npm publication, install `@voicemesh/dsh-voice@0.1.0-beta.8` from the registry in a fresh profile and repeat the keyless plugin activation check. Record the registry version, beta dist-tag, package integrity, GitHub asset hash, and install results in the release evidence. If the release must be withdrawn from normal discovery, move the `beta` dist-tag to a reviewed version and deprecate the affected version; do not assume published npm bytes can be replaced.
