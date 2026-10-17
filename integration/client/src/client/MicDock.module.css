@@ -45,7 +45,7 @@
    * bars stay legible instead of washing into it (dark mode overrides below). */
   --voice-wave-1: #4a6cbb;
   --voice-wave-2: #4260aa;
-  --voice-wave-3: #e9be62;
+  --voice-wave-3: #3a5599;
   --voice-wave-4: #324a88;
   --voice-wave-5: #2a3f77;
   color: var(--dsw-alias-label-primary, #e6e9ed);
@@ -79,7 +79,7 @@ body[data-ds-dark-theme] .control:not(.lit) {
 body[data-ds-dark-theme] .control {
   --voice-wave-1: #c3d4ee;
   --voice-wave-2: #aec8f0;
-  --voice-wave-3: #e9be62;
+  --voice-wave-3: #98b9ef;
   --voice-wave-4: #80a9ed;
   --voice-wave-5: #6395e7;
 }

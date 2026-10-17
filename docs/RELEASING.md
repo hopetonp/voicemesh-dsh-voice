@@ -6,7 +6,7 @@ This procedure prepares the public npm beta of `@voicemesh/dsh-voice`. The sourc
 
 Use the single VoiceMesh Composer checkout at `/Users/hgp/Projects/voicemesh-composer`. Build from reviewed, committed Composer and plugin source states. Select a clean, pinned Harness source checkout containing the voice build dependencies required by the packager; the published `dsh-v0.2.0-rc.2` source tag does not contain those paths. Test runtime compatibility separately with published Harness `0.2.0-rc.2`. Record the three source revisions, Composer build hash from `provenance.json`, Harness version, and Node version. Do not use an older Composer tarball installed in Harness as the build input.
 
-The current npm release target is `0.1.0-beta.9`. The npm package name and version are immutable after publication; create a new prerelease version if the candidate content changes after publication.
+The current npm release target is `0.1.0-beta.10`. The npm package name and version are immutable after publication; create a new prerelease version if the candidate content changes after publication.
 
 ## Build the candidate
 
@@ -34,6 +34,6 @@ Before publication, resolve the repository URL in package metadata: the linked G
 
 For GitHub deployment, copy the reviewed archive into `.release/assets/<version-tag>/` beside `SHA256SUMS` and `SOURCE_COMMIT`. The checksum file contains one SHA-256 entry for the archive; `SOURCE_COMMIT` names the commit at the version tag. Force-add these ignored release inputs, commit them, and run **Deploy GitHub release bundle** with that tag. The workflow checks the tag, manifest, and checksum, replaces the release `.tgz` and `SHA256SUMS` assets, and verifies the downloads. It also copies the prebuilt bundle into the repository and pushes the installable package files to `main`, so Harness can install the repository URL directly. GitHub's generated **Source code** archives for older tags remain source only.
 
-Run **Publish npm beta** on `main` with input `v0.1.0-beta.9` after the GitHub release succeeds. The workflow verifies the committed archive against the tag and checksum, then publishes that exact archive with the `beta` dist-tag. Check the registry afterward with `npm view @voicemesh/dsh-voice version dist-tags --json`.
+Run **Publish npm beta** on `main` with input `v0.1.0-beta.10` after the GitHub release succeeds. The workflow verifies the committed archive against the tag and checksum, then publishes that exact archive with the `beta` dist-tag. Check the registry afterward with `npm view @voicemesh/dsh-voice version dist-tags --json`.
 
-After npm publication, install `@voicemesh/dsh-voice@0.1.0-beta.9` from the registry in a fresh profile and repeat the keyless plugin activation check. Record the registry version, beta dist-tag, package integrity, GitHub asset hash, and install results in the release evidence. If the release must be withdrawn from normal discovery, move the `beta` dist-tag to a reviewed version and deprecate the affected version; do not assume published npm bytes can be replaced.
+After npm publication, install `@voicemesh/dsh-voice@0.1.0-beta.10` from the registry in a fresh profile and repeat the keyless plugin activation check. Record the registry version, beta dist-tag, package integrity, GitHub asset hash, and install results in the release evidence. If the release must be withdrawn from normal discovery, move the `beta` dist-tag to a reviewed version and deprecate the affected version; do not assume published npm bytes can be replaced.

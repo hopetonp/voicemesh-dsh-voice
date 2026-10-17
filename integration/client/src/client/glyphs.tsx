@@ -53,7 +53,7 @@ export function GlyphWarn({ size = 18 }: GlyphProps) {
 }
 
 /**
- * Five rounded voice bars, with the plugin mark's gold center accent. The ramp
+ * Five rounded blue voice bars. The ramp
  * is drawn once and re-tinted per surface through `--voice-wave-*`, so the bars
  * keep their contrast on a light-mode button instead of washing out; the
  * fallbacks are the values for the dark surface.
@@ -63,7 +63,7 @@ export function GlyphWave({ size = 18 }: GlyphProps) {
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect x="0.15" y="5.2" width="1.7" height="5.6" rx="0.85" fill="var(--voice-wave-1, #c3d4ee)" />
       <rect x="3.65" y="0" width="1.7" height="16" rx="0.85" fill="var(--voice-wave-2, #aec8f0)" />
-      <rect x="7.15" y="3.2" width="1.7" height="9.6" rx="0.85" fill="var(--voice-wave-3, #e9be62)" />
+      <rect x="7.15" y="3.2" width="1.7" height="9.6" rx="0.85" fill="var(--voice-wave-3, #98b9ef)" />
       <rect x="10.65" y="1.5" width="1.7" height="13" rx="0.85" fill="var(--voice-wave-4, #80a9ed)" />
       <rect x="14.15" y="5.2" width="1.7" height="5.6" rx="0.85" fill="var(--voice-wave-5, #6395e7)" />
     </svg>
