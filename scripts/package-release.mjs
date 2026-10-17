@@ -281,7 +281,9 @@ await writeFile(join(output, 'lib/index.js'), "export const name = '@voicemesh/d
 await writeFile(join(output, 'lib/host.js'), "export * from '@deepseek-ai/dsh-voice-host';\n");
 const frameworkClientId = '@deepseek-ai/dsh-voice-client';
 const installedPluginId = '@voicemesh/dsh-voice';
-const clientBundleTemplate = await readFile(join(clientBuild, 'lib/client.js'), 'utf8');
+const clientBundleTemplate = (await readFile(join(clientBuild, 'lib/client.js'), 'utf8'))
+  .replace(/^\/\/[@#] sourceMappingURL=.*$/gm, '')
+  .replace(/^[ \t]*\/\/#region .*$(?:\r?\n)?|^[ \t]*\/\/#endregion.*$(?:\r?\n)?/gm, '');
 const frameworkCssOwnerCount = [...clientBundleTemplate.matchAll(
   /\.dataset\.plugin\s*=\s*["']@deepseek-ai\/dsh-voice-client["']/g,
 )].length;
