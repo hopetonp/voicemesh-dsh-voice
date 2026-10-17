@@ -7,6 +7,11 @@ on:
         description: Existing source tag and reviewed archive to publish
         required: true
         type: string
+      repair_latest:
+        description: Update latest for an already published beta without publishing again
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -37,6 +42,11 @@ jobs:
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$ ]] || exit 1
           node scripts/deploy-github-release.mjs "$RELEASE_TAG" --verify-only
       - name: Publish beta
+        if: ${{ !inputs.repair_latest }}
         env:
           RELEASE_TAG: ${{ inputs.tag }}
         run: npm publish ".release/assets/${RELEASE_TAG}/voicemesh-dsh-voice-${RELEASE_TAG#v}.tgz" --tag beta --access public --ignore-scripts
+      - name: Update latest
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: npm dist-tag add "@voicemesh/dsh-voice@${RELEASE_TAG#v}" latest
