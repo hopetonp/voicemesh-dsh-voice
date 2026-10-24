@@ -4,6 +4,16 @@ VoiceMesh adds live, bidirectional voice to DeepSeek Harness. Choose a realtime 
 
 ## Installation
 
+### Find it in Discover
+
+In DeepSeek Harness, enable **Experimental plugins → Custom plugin markets**. Open **Plugins → Discover → Add index source** and enter:
+
+```text
+https://raw.githubusercontent.com/hopetonp/voicemesh-dsh-voice/main/market/index.json
+```
+
+Open the VoiceMesh card to install the listed beta release. The index is hosted in this repository and currently lists `0.1.0-beta.10`.
+
 ### In the app (Web or Desktop)
 
 Open **Plugins → Add plugin** in DeepSeek Harness, enter `@voicemesh/dsh-voice@0.1.0-beta.10`, and install it. Restart DeepSeek Harness, then enable **Voice Conversation by Hopeton** in **Plugins** and open its settings editor.

@@ -1,0 +1,34 @@
+{
+  "format": 1,
+  "title": "VoiceMesh plugins",
+  "description": "Voice conversation plugins for DeepSeek Harness.",
+  "plugins": [
+    {
+      "name": "@voicemesh/dsh-voice",
+      "title": "VoiceMesh for DeepSeek Harness",
+      "description": "Live two-way voice for Web and Desktop, with realtime providers or a configurable speech pipeline.",
+      "icon": "icon.svg",
+      "author": "Hopeton Palmer",
+      "homepage": "https://github.com/hopetonp/voicemesh-dsh-voice#readme",
+      "repository": {
+        "url": "https://github.com/hopetonp/voicemesh-dsh-voice"
+      },
+      "metadata": {
+        "keywords": ["voice", "voice conversation", "two-way voice", "speech to speech", "hands-free", "DeepSeek Harness", "Web", "Desktop"]
+      },
+      "dist-tags": {
+        "latest": "0.1.0-beta.10",
+        "beta": "0.1.0-beta.10"
+      },
+      "versions": [
+        {
+          "version": "0.1.0-beta.10",
+          "publishTimestamp": 1792257515,
+          "source": {
+            "type": "npm"
+          }
+        }
+      ]
+    }
+  ]
+}
