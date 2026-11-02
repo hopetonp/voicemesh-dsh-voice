@@ -1,10 +1,10 @@
-/** Realtime history with chat transcripts in the Session and audio bytes in verified immutable storage. */
+/** Realtime history kept in plugin storage: speech transcripts, provider events, and audio bytes in verified immutable storage. */
 import { brandString, type Branded } from '@deepseek-ai/dsh-brand'
 import { z } from 'zod'
-import type { Session } from '@deepseek-ai/dsh-session'
+import { appendPluginRecord, type Session } from '@deepseek-ai/dsh-session'
 import type { StsAudioRef, StsAudioStore } from './sts-audio-store.ts'
 import { stsAudioRefSchema } from './sts-audio-store.ts'
-import { appendVoiceEvent } from './voice-session-events.ts'
+import { appendVoiceEvent, TRANSCRIPT_RECORD } from './voice-session-events.ts'
 
 /** One voice connection's durable history identity. */
 export type StsConversationId = Branded<'voice-sts-conversation'>
@@ -30,8 +30,17 @@ declare module '@deepseek-ai/dsh-session/types' {
   interface SessionEventMap {
     /** Reconstructable STS provider traffic, separate from the coding model's message surface. */
     'voice/sts/event': StsRecordedEvent
-    /** Final STS speech transcript retained for chat projection and replay. */
+    /** Legacy transcript rows in logs written before plugin records; read-only for history. */
     'voice/sts/transcript': { role: 'user' | 'assistant'; text: string; conversationId: string; streamId: string; phase: 'start' | 'update' | 'final'; interrupted?: boolean }
+  }
+}
+
+/** Build one transcript record; kept pure so its shape is testable without a Session. */
+export function transcriptRecord(conversationId: StsConversationId, role: 'user' | 'assistant', text: string,
+  streamId: string, phase: 'start' | 'update' | 'final', interrupted: boolean): { type: typeof TRANSCRIPT_RECORD; data: VoiceTranscript } {
+  return {
+    type: TRANSCRIPT_RECORD,
+    data: { conversationId: String(conversationId), role, text, streamId, phase, ...(interrupted ? { interrupted: true } : {}) },
   }
 }
 
@@ -79,6 +88,9 @@ export class StsRecording {
     private readonly flush: () => Promise<boolean>,
     private readonly rates: { inputSampleRate: 16000 | 24000; outputSampleRate: 16000 | 24000 }
       = { inputSampleRate: 16000, outputSampleRate: 16000 },
+    /** Ignorable-record writer; production uses the Harness API, tests inject a spy. */
+    private readonly appendRecord: (session: Session, type: string, data: unknown) => void
+      = (session, type, data) => { appendPluginRecord(session, type as never, data as never) },
   ) {}
 
   /**
@@ -155,13 +167,21 @@ export class StsRecording {
     signal.throwIfAborted()
   }
 
-  /** Persist one completed speech transcript without exposing it to the coding model. */
+  /**
+   * Persist one completed speech transcript without exposing it to the coding model.
+   *
+   * Written as an ignorable plugin record, never through Session.append: a Session
+   * event type the installed Harness does not know makes validateStoredEvents refuse
+   * the whole log on reopen, and append() cannot set the `ignorable` marker that
+   * lets readers skip the event instead.
+   */
   async recordTranscript(role: 'user' | 'assistant', text: string, signal: AbortSignal, streamId = 'final', phase: 'start' | 'update' | 'final' = 'final', interrupted = false): Promise<void> {
     signal.throwIfAborted()
     const value = text.trim()
     if (value === '') return
     await this.persist(() => {
-      this.session.append('voice/sts/transcript', { conversationId: this.conversationId, role, text: value, streamId, phase, ...(interrupted ? { interrupted: true } : {}) })
+      const record = transcriptRecord(this.conversationId, role, value, streamId, phase, interrupted)
+      this.appendRecord(this.session, record.type, record.data)
     })
     signal.throwIfAborted()
   }

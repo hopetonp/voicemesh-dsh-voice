@@ -19,8 +19,15 @@ interface VoiceTranscriptRow {
   readonly interrupted?: boolean
 }
 
-/** The row type stays a `string` so it can be compared against the typed event union. */
-const TRANSCRIPT_ROW: string = 'voice/sts/transcript'
+/**
+ * Row types stay `string` so they can be compared against the typed event union.
+ *
+ * `plugin:voicemesh/transcript` is written now — its envelope carries `ignorable: true`, so a
+ * Harness build that does not know the type skips it instead of refusing the whole Session.
+ * `voice/sts/transcript` is kept for logs written before that change: those sessions were
+ * repaired in place with the ignorable marker, so their rows must keep rendering here.
+ */
+const TRANSCRIPT_ROWS: readonly string[] = ['plugin:voicemesh/transcript', 'voice/sts/transcript']
 
 /**
  * Read the transcript payload from one session event.
@@ -28,7 +35,7 @@ const TRANSCRIPT_ROW: string = 'voice/sts/transcript'
  * @returns the validated payload, or `undefined` when this is not a transcript row.
  */
 function transcriptRow(event: SessionEventLike): VoiceTranscriptRow | undefined {
-  if (event.type !== TRANSCRIPT_ROW) return undefined
+  if (!TRANSCRIPT_ROWS.includes(event.type)) return undefined
   const data: unknown = event.data
   if (typeof data !== 'object' || data === null) return undefined
   const row = data as Record<string, unknown>

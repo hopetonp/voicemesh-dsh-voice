@@ -7,6 +7,16 @@ import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
 import type { StsRecordedEvent } from './sts-recording.ts'
 
 type VoiceEventType = 'voice/sts/event' | 'voice/sts/transcript'
+
+/**
+ * Record type for one speech transcript.
+ *
+ * `plugin:` names are the only shape whose envelope carries `ignorable: true`, which is what lets
+ * any Harness build reopen the log: an unknown event is skipped instead of refusing the Session.
+ * The row still reaches the browser because the log keeps the event and the client Definition
+ * matches this type.
+ */
+export const TRANSCRIPT_RECORD = 'plugin:voicemesh/transcript' as const
 type VoiceTranscript = Extract<SessionEvent, { type: 'voice/sts/transcript' }>['data']
 
 class VoiceSessionEvents {
@@ -64,6 +74,23 @@ export function appendVoiceEvent(session: Session, type: 'voice/sts/event', data
 export function appendVoiceEvent(session: Session, type: 'voice/sts/transcript', data: VoiceTranscript): void
 export function appendVoiceEvent(session: Session, type: VoiceEventType, data: StsRecordedEvent | VoiceTranscript): void {
   voiceStore().append(session, type, data)
+}
+
+/** Transcript row payloads: the current plugin record plus the legacy type already in old logs. */
+const TRANSCRIPT_TYPES = new Set<string>(['voice/sts/transcript', TRANSCRIPT_RECORD])
+
+/**
+ * Read one transcript payload from any event carrying it.
+ * @param event - committed event, live or restored.
+ * @returns the payload when this event is a transcript row of either generation.
+ */
+export function transcriptRowOf(event: SessionEvent): VoiceTranscript | undefined {
+  if (!TRANSCRIPT_TYPES.has(event.type)) return undefined
+  const data = event.data as Partial<VoiceTranscript> | undefined
+  if (data === undefined || typeof data !== 'object') return undefined
+  if (data.role !== 'user' && data.role !== 'assistant') return undefined
+  if (typeof data.text !== 'string' || typeof data.conversationId !== 'string' || typeof data.streamId !== 'string') return undefined
+  return data as VoiceTranscript
 }
 
 /** Read Harness events interleaved with the plugin's durable voice events. */

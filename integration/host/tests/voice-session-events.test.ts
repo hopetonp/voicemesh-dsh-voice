@@ -32,24 +32,30 @@ test('provider history stays outside the Harness log and retains its position', 
   }
 })
 
-test('speech transcripts enter the Harness feed used by message history', async () => {
+test('speech transcripts persist as plugin records, never as Session events', async () => {
   const { StsRecording } = await import('../src/sts-recording.ts')
-  const events: SessionEvent[] = []
-  let flushed = false
+  const { transcriptRowOf } = await import('../src/voice-session-events.ts')
+  const written: { type: string; data: unknown }[] = []
   const session = {
     id: 'transcript-session',
-    ownEvents: () => events,
-    append: (type: string, data: SessionEvent['data']) => {
-      events.push({ type, seq: events.length, time: Date.now(), data } as SessionEvent)
-    },
-  } as Session
-  const recording = new StsRecording('conversation' as never, session, undefined, async () => { flushed = true; return true })
+    ownEvents: () => [],
+    // A Session event type the installed Harness does not know refuses the log on reopen.
+    append: () => { throw new Error('voice transcript must not enter the Harness Session') },
+  } as unknown as Session
+  const recording = new StsRecording('conversation' as never, session, undefined, async () => true,
+    undefined, (_session, type, data) => { written.push({ type, data }) })
   const signal = new AbortController().signal
   await recording.recordTranscript('user', 'hello', signal, 'input', 'final')
-  await recording.recordTranscript('assistant', 'hi', signal, 'output', 'final')
-  assert.equal(flushed, true)
-  assert.deepEqual(events.map(event => [event.type, event.data.role, event.data.text]), [
-    ['voice/sts/transcript', 'user', 'hello'],
-    ['voice/sts/transcript', 'assistant', 'hi'],
-  ])
+  await recording.recordTranscript('assistant', 'hi', signal, 'output', 'interrupted')
+
+  assert.deepEqual(written.map(entry => entry.type), ['plugin:voicemesh/transcript', 'plugin:voicemesh/transcript'])
+  assert.deepEqual(written[0]!.data, { conversationId: 'conversation', role: 'user', text: 'hello', streamId: 'input', phase: 'final' })
+  assert.deepEqual(written[1]!.data, { conversationId: 'conversation', role: 'assistant', text: 'hi', streamId: 'output', phase: 'interrupted' })
+
+  // The row stays readable by the plugin whichever generation wrote it.
+  const current = { type: written[0]!.type, seq: 0, time: 0, data: written[0]!.data } as SessionEvent
+  const legacy = { type: 'voice/sts/transcript', seq: 1, time: 1, data: { conversationId: 'conversation', role: 'user', text: 'old', streamId: 'input', phase: 'final' } } as SessionEvent
+  assert.equal(transcriptRowOf(current)?.text, 'hello')
+  assert.equal(transcriptRowOf(legacy)?.text, 'old')
+  assert.equal(transcriptRowOf({ type: 'turn/start', seq: 2, time: 2, data: { turn: 1 } } as SessionEvent), undefined)
 })

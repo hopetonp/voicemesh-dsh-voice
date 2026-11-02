@@ -19,7 +19,7 @@ import { WebSocketServer, WebSocket } from 'ws'
 import { z } from 'zod'
 import { StsAudioStore } from './sts-audio-store.ts'
 import { StsRecording, type StsConversationId } from './sts-recording.ts'
-import { voiceSessionEvents } from './voice-session-events.ts'
+import { transcriptRowOf, voiceSessionEvents } from './voice-session-events.ts'
 import type { StsWebRtcCall } from '@voicemesh/composer/server'
 import { openStsChannel, type StsChannel, type StsChannelSettings } from '@voicemesh/composer/server'
 import { xaiStsProvider } from '@voicemesh/composer/server'
@@ -93,10 +93,11 @@ function lastOutput(session: Session, maxChars: number, turn?: number): SavedOut
 function completedTranscriptHistory(session: Session, maxBytes: number): readonly TranscriptHistoryRow[] {
   const completed = new Map<string, TranscriptHistoryRow>()
   for (const item of voiceSessionEvents(session)) {
-    if (item.type !== 'voice/sts/transcript' || item.data.phase !== 'final' || item.data.interrupted === true) continue
-    const key = `${item.data.conversationId}:${item.data.streamId}`
+    const row = transcriptRowOf(item)
+    if (row === undefined || row.phase !== 'final' || row.interrupted === true) continue
+    const key = `${row.conversationId}:${row.streamId}`
     completed.delete(key)
-    completed.set(key, { role: item.data.role, text: item.data.text })
+    completed.set(key, { role: row.role, text: row.text })
   }
   return prepareTranscriptHistory([...completed.values()], { maxBytes, maxMessages: 127 })
 }
