@@ -12,7 +12,7 @@ In DeepSeek Harness, enable **Experimental plugins → Custom plugin markets**. 
 https://raw.githubusercontent.com/hopetonp/voicemesh-dsh-voice/main/market/index.json
 ```
 
-Open the VoiceMesh card to install the listed beta release. The index currently lists beta.10; it will move to beta.11 after npm publication.
+Open the VoiceMesh card to install the listed beta.11 release.
 
 ### In the app (Web or Desktop)
 
