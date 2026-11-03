@@ -12,18 +12,18 @@ In DeepSeek Harness, enable **Experimental plugins → Custom plugin markets**. 
 https://raw.githubusercontent.com/hopetonp/voicemesh-dsh-voice/main/market/index.json
 ```
 
-Open the VoiceMesh card to install the listed beta.11 release.
+After beta.12 is published, open the VoiceMesh card to install it.
 
 ### In the app (Web or Desktop)
 
-Open **Plugins → Add plugin** in DeepSeek Harness, enter `@voicemesh/dsh-voice@0.1.0-beta.11`, and install it. Restart DeepSeek Harness, then enable **Voice Conversation by Hopeton** in **Plugins** and open its settings editor.
+Open **Plugins → Add plugin** in DeepSeek Harness, enter `@voicemesh/dsh-voice@0.1.0-beta.12`, and install it. Restart DeepSeek Harness, then enable **Voice Conversation by Hopeton** in **Plugins** and open its settings editor.
 
 ### Optional terminal setup for Web
 
 If you manage the Web profile from a terminal, install the same package with:
 
 ```sh
-dsh plugin --profile web add @voicemesh/dsh-voice@0.1.0-beta.11
+dsh plugin --profile web add @voicemesh/dsh-voice@0.1.0-beta.12
 ```
 
 Restart the Web profile after installing or updating the plugin.
@@ -34,10 +34,10 @@ In DeepSeek Harness, open **Plugins → Add plugin** and paste either the reposi
 
 ```text
 https://github.com/hopetonp/voicemesh-dsh-voice
-https://github.com/hopetonp/voicemesh-dsh-voice/releases/download/v0.1.0-beta.11/voicemesh-dsh-voice-0.1.0-beta.11.tgz
+https://github.com/hopetonp/voicemesh-dsh-voice/releases/download/v0.1.0-beta.12/voicemesh-dsh-voice-0.1.0-beta.12.tgz
 ```
 
-The GitHub and npm installation commands above target beta.11 after its release is published.
+The GitHub and npm installation commands above target beta.12 after its release is published.
 
 Install it, restart Harness, then enable **Voice Conversation by Hopeton** in **Plugins**.
 
@@ -68,13 +68,13 @@ The model and voice lists depend on the selected provider and its current config
 
 VoiceMesh does not download or choose local pipeline speech models automatically. If you select a local speech engine, download its model pack through the setup flow and select it there. A local speech-recognition or synthesis engine does not make the selected conversational model local.
 
-The chat composer shows a voice control for an empty draft and Send while text is present.
+The chat composer shows a voice control for an empty draft and Send while text is present. Cumulative provider transcript items appear as one utterance, including when the provider changes item IDs.
 
 To remove the plugin in Web or Desktop, open **Plugins**, uninstall it, and restart.
 
 ## Build from GitHub source
 
-The source build also needs VoiceMesh Composer and a compatible DeepSeek Harness checkout. Use Node.js 22.19 or newer and pnpm 11.7.0. These revisions reproduce the beta.11 package:
+The source build also needs VoiceMesh Composer and a compatible DeepSeek Harness checkout. Use Node.js 22.19 or newer and pnpm 11.7.0. These revisions reproduce the beta.12 package:
 
 ```sh
 git clone https://github.com/hopetonp/voicemesh-dsh-voice.git
@@ -92,7 +92,7 @@ pnpm install
 pnpm run build
 
 cd ../voicemesh-dsh-voice
-git checkout v0.1.0-beta.11
+git checkout v0.1.0-beta.12
 npm run check
 VOICEMESH_COMPOSER_DIR=../voicemesh-composer npm run package -- ../deepseek-harness --public
 ```

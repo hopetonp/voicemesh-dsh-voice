@@ -48,6 +48,8 @@ export function transcriptRecord(conversationId: StsConversationId, role: 'user'
 export class StsRecording {
   private pending: { append: () => void; resolve: () => void; reject: (error: unknown) => void }[] = []
   private writing = false
+  private readonly inputDisplayStreams = new Map<string, string>()
+  private lastInputTranscript: { text: string; displayStreamId: string } | undefined
 
   private persist(append: () => void): Promise<void> {
     const operation = Promise.withResolvers<void>()
@@ -72,6 +74,12 @@ export class StsRecording {
       }
     }
     this.writing = false
+  }
+
+  /** End input transcript grouping when the provider begins an assistant response. */
+  beginAssistantResponse(): void {
+    this.inputDisplayStreams.clear()
+    this.lastInputTranscript = undefined
   }
 
   /**
@@ -173,14 +181,27 @@ export class StsRecording {
    * Written as an ignorable plugin record, never through Session.append: a Session
    * event type the installed Harness does not know makes validateStoredEvents refuse
    * the whole log on reopen, and append() cannot set the `ignorable` marker that
-   * lets readers skip the event instead.
+   * lets readers skip the event instead. Cumulative input items share a display stream
+   * when a new provider item extends the previous input text; an assistant transcript ends that grouping.
    */
   async recordTranscript(role: 'user' | 'assistant', text: string, signal: AbortSignal, streamId = 'final', phase: 'start' | 'update' | 'final' = 'final', interrupted = false): Promise<void> {
     signal.throwIfAborted()
     const value = text.trim()
     if (value === '') return
+    let displayStreamId = streamId
+    if (role === 'assistant') {
+      this.beginAssistantResponse()
+    } else {
+      displayStreamId = this.inputDisplayStreams.get(streamId) ?? streamId
+      if (!this.inputDisplayStreams.has(streamId) && this.lastInputTranscript !== undefined
+        && value.length > this.lastInputTranscript.text.length && value.startsWith(this.lastInputTranscript.text)) {
+        displayStreamId = this.lastInputTranscript.displayStreamId
+      }
+      this.inputDisplayStreams.set(streamId, displayStreamId)
+      this.lastInputTranscript = { text: value, displayStreamId }
+    }
     await this.persist(() => {
-      const record = transcriptRecord(this.conversationId, role, value, streamId, phase, interrupted)
+      const record = transcriptRecord(this.conversationId, role, value, displayStreamId, phase, interrupted)
       this.appendRecord(this.session, record.type, record.data)
     })
     signal.throwIfAborted()

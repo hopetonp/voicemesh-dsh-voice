@@ -564,6 +564,7 @@ export function mountStsLive(ctx: Context, config: StsLiveConfig): void {
           }
           if (event.type === 'input_audio_buffer.speech_stopped') { userSpeaking = false; responseActive = true }
           if (event.type === 'response.created') {
+            recorder?.beginAssistantResponse()
             responseActive = true
             playbackBusy = true
             playbackResponse = z.object({ id: z.string() }).parse(event.response).id

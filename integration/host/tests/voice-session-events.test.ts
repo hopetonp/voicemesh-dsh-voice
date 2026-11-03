@@ -59,3 +59,43 @@ test('speech transcripts persist as plugin records, never as Session events', as
   assert.equal(transcriptRowOf(legacy)?.text, 'old')
   assert.equal(transcriptRowOf({ type: 'turn/start', seq: 2, time: 2, data: { turn: 1 } } as SessionEvent), undefined)
 })
+
+test('cumulative provider input items share a display stream until an assistant response', async () => {
+  const { StsRecording } = await import('../src/sts-recording.ts')
+  const written: { data: { role: string; text: string; streamId: string } }[] = []
+  const session = { id: 'transcript-coalescing', ownEvents: () => [] } as unknown as Session
+  const recording = new StsRecording('conversation' as never, session, undefined, async () => true,
+    undefined, (_session, _type, data) => { written.push({ data }) })
+  const signal = new AbortController().signal
+
+  await recording.recordTranscript('user', 'turn begins here', signal, 'item-1', 'update')
+  await recording.recordTranscript('user', 'turn begins here and continues', signal, 'item-2', 'update')
+  await recording.recordTranscript('user', 'new unrelated utterance', signal, 'item-3', 'final')
+  await recording.recordTranscript('user', 'corrected unrelated utterance', signal, 'item-3', 'final')
+  recording.beginAssistantResponse()
+  await recording.recordTranscript('user', 'corrected unrelated utterance continued', signal, 'item-4', 'final')
+  await recording.recordTranscript('assistant', 'response', signal, 'response-1', 'final')
+  await recording.recordTranscript('user', 'turn begins here again', signal, 'item-5', 'final')
+
+  assert.deepEqual(written.map(({ data }) => data.streamId), ['item-1', 'item-1', 'item-3', 'item-3', 'item-4', 'response-1', 'item-5'])
+  assert.deepEqual(written.map(({ data }) => data.text), [
+    'turn begins here', 'turn begins here and continues', 'new unrelated utterance',
+    'corrected unrelated utterance', 'corrected unrelated utterance continued', 'response', 'turn begins here again',
+  ])
+})
+
+test('an assistant response clears queued input grouping before persistence drains', async () => {
+  const { StsRecording } = await import('../src/sts-recording.ts')
+  const written: { data: { streamId: string } }[] = []
+  const session = { id: 'transcript-reset-race', ownEvents: () => [] } as unknown as Session
+  const recording = new StsRecording('conversation' as never, session, undefined, async () => true,
+    undefined, (_session, _type, data) => { written.push({ data }) })
+  const signal = new AbortController().signal
+
+  const pending = recording.recordTranscript('user', 'prior spoken text', signal, 'item-before', 'update')
+  recording.beginAssistantResponse()
+  const following = recording.recordTranscript('user', 'prior spoken text continues', signal, 'item-after', 'update')
+  await Promise.all([pending, following])
+
+  assert.deepEqual(written.map(({ data }) => data.streamId), ['item-before', 'item-after'])
+})
