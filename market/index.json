@@ -17,13 +17,13 @@
         "keywords": ["voice", "voice conversation", "two-way voice", "speech to speech", "hands-free", "DeepSeek Harness", "Web", "Desktop"]
       },
       "dist-tags": {
-        "latest": "0.1.0-beta.11",
-        "beta": "0.1.0-beta.11"
+        "latest": "0.1.0-beta.12",
+        "beta": "0.1.0-beta.12"
       },
       "versions": [
         {
-          "version": "0.1.0-beta.11",
-          "publishTimestamp": 1793669708,
+          "version": "0.1.0-beta.12",
+          "publishTimestamp": 1793688086,
           "source": {
             "type": "npm"
           }

@@ -12,7 +12,7 @@ In DeepSeek Harness, enable **Experimental plugins → Custom plugin markets**. 
 https://raw.githubusercontent.com/hopetonp/voicemesh-dsh-voice/main/market/index.json
 ```
 
-After beta.12 is published, open the VoiceMesh card to install it.
+Open the VoiceMesh card to install beta.12.
 
 ### In the app (Web or Desktop)
 
@@ -37,7 +37,7 @@ https://github.com/hopetonp/voicemesh-dsh-voice
 https://github.com/hopetonp/voicemesh-dsh-voice/releases/download/v0.1.0-beta.12/voicemesh-dsh-voice-0.1.0-beta.12.tgz
 ```
 
-The GitHub and npm installation commands above target beta.12 after its release is published.
+The GitHub and npm installation commands above target beta.12.
 
 Install it, restart Harness, then enable **Voice Conversation by Hopeton** in **Plugins**.
 
