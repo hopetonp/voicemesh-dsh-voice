@@ -2,12 +2,12 @@
   {
     "name": "@voicemesh/composer",
     "sourceVersion": "0.2.17",
-    "buildSha256": "6d9585f5af628b650f3cb3462612b216c5d639fd57c15069039f2b6b9f896faf"
+    "buildSha256": "37c8c6681163320fe32fec745394dc5e47d367131091f0d005b46eb9e99955c7"
   },
   {
     "name": "@deepseek-ai/dsh-voice-host",
     "sourceVersion": "0.1.2-alpha.4",
-    "hostSha256": "b63c1b8e68f0faf2120f4dae213a189ea72de3da43874a523364966253ac0649"
+    "hostSha256": "0788094bbfe07a4eb377b31048131cd00c8468b90ba777ceb92fbb091ac3b205"
   },
   {
     "name": "@deepseek-ai/dsh-voice-client",
