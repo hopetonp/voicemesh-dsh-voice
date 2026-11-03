@@ -217,8 +217,12 @@ for (const [name, relative] of components) {
       fixedExtension: false, dts: false, clean: false, sourcemap: false,
       // A profile installs this archive outside the Harness runtime tree, so Node cannot
       // resolve Harness workspace packages from the nested host package. Bundle those
-      // implementation helpers; the voice host uses the supplied Context structurally.
-      deps: { alwaysBundle: /^(?!node:)/ },
+      // implementation helpers, but keep Session external so plugin records use the
+      // host's rc.5 Session instance rather than a bundled duplicate.
+      deps: {
+        alwaysBundle: /^(?!node:)/,
+        neverBundle: ['@deepseek-ai/dsh-session'],
+      },
     });
   } else {
     for (const file of ['index.js', 'client.js']) {
@@ -253,8 +257,8 @@ for (const [name, relative] of components) {
     } finally { await rm(decoratorInput, { force: true }); }
     await writeFile(join(target, 'lib/index.js'), hostCode);
   }
-  if (name.endsWith('-host') && /(?:from\s+|import\s+)["']@deepseek-ai\//.test(hostCode)) {
-    throw new Error('Voice host bundle retained a Harness runtime import that profiles cannot resolve.');
+  if (name.endsWith('-host') && /(?:from\s+|import\s+)["']@deepseek-ai\/(?!dsh-session(?:["'/]))/.test(hostCode)) {
+    throw new Error('Voice host bundle retained a Harness runtime import outside the shared Session package.');
   }
   const imports = [...hostCode.matchAll(/from\s+['"](@deepseek-ai\/[^'"]+)['"]|import\s+['"](@deepseek-ai\/[^'"]+)['"]/g)]
     .map(match => (match[1] ?? match[2]).split('/').slice(0, 2).join('/'));
@@ -265,8 +269,11 @@ for (const [name, relative] of components) {
     exports: { '.': './lib/index.js', './package.json': './package.json',
       ...(name.endsWith('-client') ? { './client': './lib/client.js' } : {}) },
     ...(original.dsh ? { dsh: original.dsh } : {}),
-    peerDependencies: peers,
-    peerDependenciesMeta: Object.fromEntries(Object.keys(peers).map(name => [name, { optional: true }])),
+    peerDependencies: {
+      ...peers,
+      ...(name.endsWith('-host') ? { '@deepseek-ai/dsh-session': '0.2.1-rc.5' } : {}),
+    },
+    peerDependenciesMeta: Object.fromEntries(Object.keys(peers).filter(name => name !== '@deepseek-ai/dsh-session').map(name => [name, { optional: true }])),
   };
   await writeFile(join(target, 'package.json'), JSON.stringify(child, null, 2) + '\n');
   if (name.endsWith('-client')) clientDsh = original.dsh?.client;

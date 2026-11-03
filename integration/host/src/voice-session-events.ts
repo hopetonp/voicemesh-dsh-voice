@@ -17,7 +17,7 @@ type VoiceEventType = 'voice/sts/event' | 'voice/sts/transcript'
  * matches this type.
  */
 export const TRANSCRIPT_RECORD = 'plugin:voicemesh/transcript' as const
-type VoiceTranscript = Extract<SessionEvent, { type: 'voice/sts/transcript' }>['data']
+export type VoiceTranscript = Extract<SessionEvent, { type: 'voice/sts/transcript' }>['data']
 
 class VoiceSessionEvents {
   private readonly db: DatabaseSync

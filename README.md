@@ -12,18 +12,18 @@ In DeepSeek Harness, enable **Experimental plugins → Custom plugin markets**. 
 https://raw.githubusercontent.com/hopetonp/voicemesh-dsh-voice/main/market/index.json
 ```
 
-Open the VoiceMesh card to install the listed beta release. The index is hosted in this repository and currently lists `0.1.0-beta.10`.
+Open the VoiceMesh card to install the listed beta release. The index currently lists beta.10; it will move to beta.11 after npm publication.
 
 ### In the app (Web or Desktop)
 
-Open **Plugins → Add plugin** in DeepSeek Harness, enter `@voicemesh/dsh-voice@0.1.0-beta.10`, and install it. Restart DeepSeek Harness, then enable **Voice Conversation by Hopeton** in **Plugins** and open its settings editor.
+Open **Plugins → Add plugin** in DeepSeek Harness, enter `@voicemesh/dsh-voice@0.1.0-beta.11`, and install it. Restart DeepSeek Harness, then enable **Voice Conversation by Hopeton** in **Plugins** and open its settings editor.
 
 ### Optional terminal setup for Web
 
 If you manage the Web profile from a terminal, install the same package with:
 
 ```sh
-dsh plugin --profile web add @voicemesh/dsh-voice@0.1.0-beta.10
+dsh plugin --profile web add @voicemesh/dsh-voice@0.1.0-beta.11
 ```
 
 Restart the Web profile after installing or updating the plugin.
@@ -34,10 +34,10 @@ In DeepSeek Harness, open **Plugins → Add plugin** and paste either the reposi
 
 ```text
 https://github.com/hopetonp/voicemesh-dsh-voice
-https://github.com/hopetonp/voicemesh-dsh-voice/releases/download/v0.1.0-beta.10/voicemesh-dsh-voice-0.1.0-beta.10.tgz
+https://github.com/hopetonp/voicemesh-dsh-voice/releases/download/v0.1.0-beta.11/voicemesh-dsh-voice-0.1.0-beta.11.tgz
 ```
 
-The GitHub and npm installation commands above target beta.10.
+The GitHub and npm installation commands above target beta.11 after its release is published.
 
 Install it, restart Harness, then enable **Voice Conversation by Hopeton** in **Plugins**.
 
@@ -74,7 +74,7 @@ To remove the plugin in Web or Desktop, open **Plugins**, uninstall it, and rest
 
 ## Build from GitHub source
 
-The source build also needs VoiceMesh Composer and a compatible DeepSeek Harness checkout. Use Node.js 22.19 or newer and pnpm 11.7.0. These revisions reproduce the beta.10 package:
+The source build also needs VoiceMesh Composer and a compatible DeepSeek Harness checkout. Use Node.js 22.19 or newer and pnpm 11.7.0. These revisions reproduce the beta.11 package:
 
 ```sh
 git clone https://github.com/hopetonp/voicemesh-dsh-voice.git
@@ -92,7 +92,7 @@ pnpm install
 pnpm run build
 
 cd ../voicemesh-dsh-voice
-git checkout v0.1.0-beta.10
+git checkout v0.1.0-beta.11
 npm run check
 VOICEMESH_COMPOSER_DIR=../voicemesh-composer npm run package -- ../deepseek-harness --public
 ```

@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { appendPluginRecord, type Session } from '@deepseek-ai/dsh-session'
 import type { StsAudioRef, StsAudioStore } from './sts-audio-store.ts'
 import { stsAudioRefSchema } from './sts-audio-store.ts'
-import { appendVoiceEvent, TRANSCRIPT_RECORD } from './voice-session-events.ts'
+import { appendVoiceEvent, TRANSCRIPT_RECORD, type VoiceTranscript } from './voice-session-events.ts'
 
 /** One voice connection's durable history identity. */
 export type StsConversationId = Branded<'voice-sts-conversation'>
@@ -89,8 +89,8 @@ export class StsRecording {
     private readonly rates: { inputSampleRate: 16000 | 24000; outputSampleRate: 16000 | 24000 }
       = { inputSampleRate: 16000, outputSampleRate: 16000 },
     /** Ignorable-record writer; production uses the Harness API, tests inject a spy. */
-    private readonly appendRecord: (session: Session, type: string, data: unknown) => void
-      = (session, type, data) => { appendPluginRecord(session, type as never, data as never) },
+    private readonly appendRecord: (session: Session, type: typeof TRANSCRIPT_RECORD, data: VoiceTranscript) => void
+      = appendPluginRecord,
   ) {}
 
   /**
