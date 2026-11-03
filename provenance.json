@@ -7,7 +7,7 @@
   {
     "name": "@deepseek-ai/dsh-voice-host",
     "sourceVersion": "0.1.2-alpha.4",
-    "hostSha256": "0788094bbfe07a4eb377b31048131cd00c8468b90ba777ceb92fbb091ac3b205"
+    "hostSha256": "e17a88816181f083b2ab11ba699b2a8e1177b14d5d2eafd45372db5260e883e0"
   },
   {
     "name": "@deepseek-ai/dsh-voice-client",
