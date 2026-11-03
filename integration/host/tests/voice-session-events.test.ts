@@ -46,11 +46,11 @@ test('speech transcripts persist as plugin records, never as Session events', as
     undefined, (_session, type, data) => { written.push({ type, data }) })
   const signal = new AbortController().signal
   await recording.recordTranscript('user', 'hello', signal, 'input', 'final')
-  await recording.recordTranscript('assistant', 'hi', signal, 'output', 'interrupted')
+  await recording.recordTranscript('assistant', 'hi', signal, 'output', 'final', true)
 
   assert.deepEqual(written.map(entry => entry.type), ['plugin:voicemesh/transcript', 'plugin:voicemesh/transcript'])
   assert.deepEqual(written[0]!.data, { conversationId: 'conversation', role: 'user', text: 'hello', streamId: 'input', phase: 'final' })
-  assert.deepEqual(written[1]!.data, { conversationId: 'conversation', role: 'assistant', text: 'hi', streamId: 'output', phase: 'interrupted' })
+  assert.deepEqual(written[1]!.data, { conversationId: 'conversation', role: 'assistant', text: 'hi', streamId: 'output', phase: 'final', interrupted: true })
 
   // The row stays readable by the plugin whichever generation wrote it.
   const current = { type: written[0]!.type, seq: 0, time: 0, data: written[0]!.data } as SessionEvent
